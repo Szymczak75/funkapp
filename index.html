@@ -518,9 +518,9 @@
 
 <script>
 // ═══════════════════════════════════════════
-// CONFIG – nach Railway-Deploy anpassen
+// CONFIG
 // ═══════════════════════════════════════════
-const SERVER_URL = "wss://funkapp-production.up.railway.app"; // z.B. wss://funkapp.up.railway.app
+const SERVER_URL = "wss://funkapp-production.up.railway.app";
 
 // ═══════════════════════════════════════════
 let ws = null;
@@ -541,24 +541,44 @@ const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" },
     {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject"
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject"
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject"
+      urls: [
+        "turn:turn.metered.ca:80",
+        "turn:turn.metered.ca:443",
+        "turns:turn.metered.ca:443"
+      ],
+      username: "dee4a54c95f7f1d3e6d6e2d8",
+      credential: "mQSXmqJWFfJRfCbD"
     }
   ],
   iceCandidatePoolSize: 10,
+  iceTransportPolicy: "all",
 };
+
+// ─── Wake Lock & Visibility ───
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+    } catch(e) {}
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    // Seite wieder sichtbar → Verbindung prüfen und Wake Lock erneuern
+    requestWakeLock();
+    if (myId && (!ws || ws.readyState !== WebSocket.OPEN)) {
+      connectWS(window._lastPassword);
+    } else if (ws && ws.readyState === WebSocket.OPEN) {
+      // Userliste aktualisieren
+      wsSend({ type: "ping" });
+    }
+  }
+});
 
 // ─── Helpers ───
 function showToast(msg, ms = 2500) {
@@ -685,6 +705,7 @@ function showApp() {
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("app-screen").classList.add("active");
   document.getElementById("display-myname").textContent = myName;
+  requestWakeLock();
 }
 
 // ─── Users ───
