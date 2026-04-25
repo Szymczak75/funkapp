@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #7b2fbe;
+      background: #b8860b;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -455,7 +455,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v0.9</span>
+    <span class="version-badge">v1.0</span>
   </div>
   <div class="login-form">
     <div>
@@ -924,8 +924,7 @@ async function startStreamTo(peerId) {
   if (peerConnections.has(peerId)) return;
   if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
 
-  dbg(`📤 Verbinde zu ${users.get(peerId)?.name} (ich=${myId.slice(0,4)}, sie=${peerId.slice(0,4)})`);
-
+  dbg(`📤 Verbinde zu ${users.get(peerId)?.name}...`);
   const pc = new RTCPeerConnection(ICE_CONFIG);
   peerConnections.set(peerId, pc);
 
@@ -946,19 +945,14 @@ async function startStreamTo(peerId) {
     }
   };
 
-  // Nur der mit der kleineren ID sendet den Offer - verhindert gleichzeitige Offers
-  if (myId < peerId) {
-    try {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      wsSend({ type: "offer", to: peerId, sdp: pc.localDescription });
-      dbg(`📨 Offer → ${users.get(peerId)?.name}`);
-    } catch(e) {
-      dbg(`❌ Offer Fehler: ${e.message}`);
-      peerConnections.delete(peerId);
-    }
-  } else {
-    dbg(`⏳ Warte auf Offer von ${users.get(peerId)?.name}...`);
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    wsSend({ type: "offer", to: peerId, sdp: pc.localDescription });
+    dbg(`📨 Offer → ${users.get(peerId)?.name}`);
+  } catch(e) {
+    dbg(`❌ Offer Fehler: ${e.message}`);
+    peerConnections.delete(peerId);
   }
 }
 
@@ -985,11 +979,17 @@ async function handleOffer(msg) {
     incomingPeers.get(msg.from).close();
     incomingPeers.delete(msg.from);
   }
-  // Auch outgoing PC schließen falls vorhanden (Kollision)
-  if (peerConnections.has(msg.from) && myId > msg.from) {
-    dbg(`🔄 Kollision – ich gebe nach und empfange`);
-    peerConnections.get(msg.from).close();
-    peerConnections.delete(msg.from);
+  // Kollision: beide haben gleichzeitig Offer gesendet
+  // Der mit der größeren ID gibt nach und empfängt stattdessen
+  if (peerConnections.has(msg.from)) {
+    if (myId > msg.from) {
+      dbg(`🔄 Kollision – ich gebe nach (${myId.slice(0,4)} > ${msg.from.slice(0,4)})`);
+      peerConnections.get(msg.from).close();
+      peerConnections.delete(msg.from);
+    } else {
+      dbg(`🚫 Kollision – ignoriere eingehenden Offer (ich bin kleiner)`);
+      return;
+    }
   }
 
   const pc = new RTCPeerConnection(ICE_CONFIG);
