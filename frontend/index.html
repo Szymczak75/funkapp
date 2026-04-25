@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>FunkApp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0f0d;
+      --panel: #111a15;
+      --border: #1e3028;
+      --green: #00ff7f;
+      --green-dim: #00c45f;
+      --green-glow: rgba(0,255,127,0.15);
+      --amber: #ffb700;
+      --amber-glow: rgba(255,183,0,0.15);
+      --red: #ff3d3d;
+      --red-glow: rgba(255,61,61,0.15);
+      --text: #c8e6d4;
+      --muted: #4a7060;
+      --mono: 'Share Tech Mono', monospace;
+      --sans: 'Barlow', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* ─── LOGIN ─── */
+    #login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      width: 100%;
+      padding: 2rem;
+      gap: 2rem;
+    }
+
+    .logo { text-align: center; }
+    .logo-icon {
+      font-size: 3.5rem;
+      display: block;
+      margin-bottom: 0.5rem;
+      filter: drop-shadow(0 0 12px var(--green));
+      animation: pulse-icon 3s ease-in-out infinite;
+    }
+    @keyframes pulse-icon {
+      0%,100% { filter: drop-shadow(0 0 12px var(--green)); }
+      50% { filter: drop-shadow(0 0 28px var(--green)); }
+    }
+    .logo h1 {
+      font-family: var(--mono);
+      font-size: 2rem;
+      color: var(--green);
+      letter-spacing: 0.15em;
+    }
+    .logo p { font-size: 0.85rem; color: var(--muted); letter-spacing: 0.1em; margin-top: 0.25rem; }
+
+    .login-form {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    label { font-size: 0.75rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.25rem; display: block; }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-glow); }
+
+    .btn-join {
+      background: var(--green);
+      color: var(--bg);
+      border: none;
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: var(--mono);
+      font-size: 1rem;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: all 0.15s;
+    }
+    .btn-join:active { transform: scale(0.97); }
+
+    .error-msg { color: var(--red); font-size: 0.85rem; text-align: center; font-family: var(--mono); display: none; }
+    .error-msg.show { display: block; }
+
+    /* ─── APP ─── */
+    #app-screen {
+      display: none;
+      flex-direction: column;
+      width: 100%;
+      max-width: 480px;
+      min-height: 100dvh;
+      padding: 1rem;
+      gap: 1rem;
+      padding-bottom: 2rem;
+    }
+    #app-screen.active { display: flex; }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .app-title { font-family: var(--mono); color: var(--green); font-size: 1.1rem; letter-spacing: 0.1em; }
+    .my-name-tag { font-size: 0.8rem; color: var(--muted); font-family: var(--mono); }
+    .my-name-tag span { color: var(--amber); }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    /* ─── STATUS BAR ─── */
+    .status-bar {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-height: 3.2rem;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .status-bar.live-send {
+      border-color: var(--green);
+      box-shadow: 0 0 16px var(--green-glow);
+    }
+    .status-bar.live-recv {
+      border-color: var(--amber);
+      box-shadow: 0 0 16px var(--amber-glow);
+    }
+
+    .wave {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .status-bar.live-send .wave,
+    .status-bar.live-recv .wave { opacity: 1; }
+
+    .wave span {
+      display: block;
+      width: 3px;
+      background: var(--green);
+      border-radius: 2px;
+      animation: wave-bar 0.5s ease-in-out infinite alternate;
+    }
+    .status-bar.live-recv .wave span { background: var(--amber); }
+    .wave span:nth-child(1){height:5px;animation-delay:0s}
+    .wave span:nth-child(2){height:13px;animation-delay:0.1s}
+    .wave span:nth-child(3){height:9px;animation-delay:0.2s}
+    .wave span:nth-child(4){height:17px;animation-delay:0.05s}
+    .wave span:nth-child(5){height:7px;animation-delay:0.15s}
+    @keyframes wave-bar { from{transform:scaleY(0.35)} to{transform:scaleY(1)} }
+
+    .status-text {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      color: var(--muted);
+      flex: 1;
+    }
+    .status-bar.live-send .status-text { color: var(--green); }
+    .status-bar.live-recv .status-text { color: var(--amber); }
+
+    /* ─── MIC TOGGLE ─── */
+    .mic-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+    }
+    .mic-toggle-label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .mic-toggle-label strong { font-size: 0.9rem; }
+    .mic-toggle-label small { font-size: 0.75rem; color: var(--muted); font-family: var(--mono); }
+
+    .toggle-switch {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input { display: none; }
+    .toggle-switch .slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 28px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle-switch .slider::before {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      left: 4px; top: 4px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle-switch input:checked + .slider { background: var(--green-glow); border: 1px solid var(--green); }
+    .toggle-switch input:checked + .slider::before { transform: translateX(24px); background: var(--green); }
+
+    /* ─── SECTION ─── */
+    .section-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ─── ALL BUTTON ─── */
+    .btn-all {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: all 0.15s;
+      text-align: left;
+      margin-bottom: 0.5rem;
+    }
+    .btn-all.active {
+      background: var(--green-glow);
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .btn-all .btn-all-icon { font-size: 1.2rem; }
+    .btn-all:active { transform: scale(0.98); }
+
+    /* ─── USER CARDS ─── */
+    .users-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .user-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      -webkit-user-select: none;
+      position: relative;
+      overflow: hidden;
+    }
+    .user-card.selected {
+      border-color: var(--green);
+      background: var(--green-glow);
+    }
+    .user-card.speaking-incoming {
+      border-color: var(--amber);
+      background: var(--amber-glow);
+    }
+    .user-card:active { transform: scale(0.98); }
+
+    .user-avatar {
+      width: 64px; height: 40px;
+      border-radius: 8px;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+      font-family: var(--mono);
+      color: var(--green);
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0 6px;
+      overflow: hidden;
+    }
+    .user-card.selected .user-avatar {
+      border-color: var(--green);
+      box-shadow: 0 0 10px var(--green-glow);
+    }
+    .user-card.speaking-incoming .user-avatar {
+      border-color: var(--amber);
+      box-shadow: 0 0 10px var(--amber-glow);
+    }
+
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-weight: 600; font-size: 0.95rem; color: var(--text); }
+    .user-status { font-size: 0.75rem; color: var(--muted); font-family: var(--mono); margin-top: 0.1rem; }
+    .user-card.selected .user-status { color: var(--green); }
+    .user-card.speaking-incoming .user-status { color: var(--amber); }
+
+    .user-indicator {
+      font-size: 1rem;
+      transition: opacity 0.15s;
+    }
+
+    /* Speaking mini-wave on card */
+    .card-wave {
+      display: none;
+      gap: 2px;
+      align-items: center;
+    }
+    .user-card.speaking-incoming .card-wave { display: flex; }
+    .card-wave span {
+      display: block;
+      width: 2px;
+      background: var(--amber);
+      border-radius: 2px;
+      animation: wave-bar 0.5s ease-in-out infinite alternate;
+    }
+    .card-wave span:nth-child(1){height:4px;animation-delay:0s}
+    .card-wave span:nth-child(2){height:10px;animation-delay:0.1s}
+    .card-wave span:nth-child(3){height:6px;animation-delay:0.2s}
+
+    /* ─── PERMISSION WARN ─── */
+    .permission-warn {
+      background: rgba(255,183,0,0.1);
+      border: 1px solid var(--amber);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.82rem;
+      color: var(--amber);
+      display: none;
+      text-align: center;
+      font-family: var(--mono);
+    }
+    .permission-warn.show { display: block; }
+
+    /* ─── TOAST ─── */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(4rem);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 1.2rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--text);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ════════ LOGIN ════════ -->
+<div id="login-screen">
+  <div class="logo">
+    <span class="logo-icon">📻</span>
+    <h1>FUNKAPP</h1>
+    <p>Antippen · Sprechen · Fertig</p>
+  </div>
+  <div class="login-form">
+    <div>
+      <label>Dein Name</label>
+      <input type="text" id="input-name" placeholder="z.B. Thomas" maxlength="20" autocomplete="off" />
+    </div>
+    <div>
+      <label>Raumpasswort</label>
+      <input type="password" id="input-password" placeholder="••••••••" />
+    </div>
+    <button class="btn-join" onclick="joinRoom()">▶ BEITRETEN</button>
+    <div class="error-msg" id="error-msg">Falsches Passwort oder Verbindungsfehler</div>
+  </div>
+</div>
+
+<!-- ════════ APP ════════ -->
+<div id="app-screen">
+
+  <header class="app-header">
+    <div>
+      <div class="app-title">📻 FUNKAPP</div>
+      <div class="my-name-tag">Eingeloggt als: <span id="display-myname"></span></div>
+    </div>
+    <div class="status-dot" id="conn-dot"></div>
+  </header>
+
+  <!-- Status -->
+  <div class="status-bar" id="status-bar">
+    <div class="wave">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="status-text" id="status-text">Bereit · Wähle Empfänger aus</div>
+  </div>
+
+  <!-- Mic toggle -->
+  <div class="mic-toggle">
+    <div class="mic-toggle-label">
+      <strong>🎙️ Mikrofon aktiv</strong>
+      <small id="mic-sub-label">Aus – tippe Personen an zum Sprechen</small>
+    </div>
+    <label class="toggle-switch">
+      <input type="checkbox" id="mic-toggle-input" onchange="onMicToggle()" />
+      <div class="slider"></div>
+    </label>
+  </div>
+
+  <!-- All button -->
+  <div>
+    <div class="section-label">Schnellauswahl</div>
+    <button class="btn-all" id="btn-all" onclick="toggleAll()">
+      <span class="btn-all-icon">📢</span>
+      <span>Alle gleichzeitig</span>
+    </button>
+
+    <div class="section-label">Teilnehmer (<span id="user-count">0</span>)</div>
+    <div class="users-grid" id="users-grid">
+      <div style="color:var(--muted);font-size:0.85rem;font-family:var(--mono);padding:0.5rem 0;">
+        Warte auf andere Teilnehmer...
+      </div>
+    </div>
+  </div>
+
+  <div class="permission-warn" id="perm-warn">
+    ⚠️ Mikrofon-Erlaubnis benötigt.<br>Bitte im Browser erlauben und nochmal tippen.
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG – nach Railway-Deploy anpassen
+// ═══════════════════════════════════════════
+const SERVER_URL = "DEINE_RAILWAY_URL_HIER"; // z.B. wss://funkapp.up.railway.app
+
+// ═══════════════════════════════════════════
+let ws = null;
+let myId = null;
+let myName = "";
+let users = new Map();           // id → {name, role}
+let selectedUsers = new Set();   // wen ich gerade bespiele
+let allSelected = false;
+
+let micActive = false;           // Toggle-Schalter oben
+let localStream = null;
+
+let peerConnections = new Map(); // peerId → RTCPeerConnection (outgoing, ich spreche)
+let incomingPeers = new Map();   // peerId → RTCPeerConnection (incoming, jemand spricht zu mir)
+let speakingFrom = new Map();    // peerId → true (wer gerade zu mir spricht)
+
+const ICE_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ],
+};
+
+// ─── Helpers ───
+function showToast(msg, ms = 2500) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), ms);
+}
+
+function genId() { return Math.random().toString(36).slice(2, 10); }
+function getInitial(name) { return name ? name.slice(0, 5).toUpperCase() : "?"; }
+
+function setStatus(text, mode = "idle") {
+  const bar = document.getElementById("status-bar");
+  document.getElementById("status-text").textContent = text;
+  bar.classList.toggle("live-send", mode === "send");
+  bar.classList.toggle("live-recv", mode === "recv");
+}
+
+// ─── Login ───
+function joinRoom() {
+  const name = document.getElementById("input-name").value.trim();
+  const pw   = document.getElementById("input-password").value;
+  if (!name) { showToast("Bitte Namen eingeben"); return; }
+  if (!pw)   { showToast("Bitte Passwort eingeben"); return; }
+  myName = name;
+  myId   = genId();
+  connectWS(pw);
+}
+
+// ─── WebSocket ───
+function connectWS(password) {
+  try { ws = new WebSocket(SERVER_URL); }
+  catch(e) { showError("Verbindung fehlgeschlagen"); return; }
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: "join", id: myId, name: myName, password }));
+  };
+  ws.onmessage = (e) => {
+    let msg; try { msg = JSON.parse(e.data); } catch { return; }
+    handleMessage(msg);
+  };
+  ws.onclose = () => {
+    showToast("Verbindung getrennt – bitte neu laden");
+    document.getElementById("conn-dot").style.background = "var(--red)";
+  };
+  ws.onerror = () => showError("Server nicht erreichbar");
+}
+
+function wsSend(data) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
+}
+
+function showError(txt) {
+  const e = document.getElementById("error-msg");
+  e.textContent = txt; e.classList.add("show");
+}
+
+// ─── Messages ───
+function handleMessage(msg) {
+  switch (msg.type) {
+    case "joined":
+      updateUsers(msg.users);
+      showApp();
+      break;
+    case "error":
+      showError(msg.message);
+      break;
+    case "user_joined":
+      updateUsers(msg.users);
+      showToast(`📡 ${msg.name} ist beigetreten`);
+      break;
+    case "user_left":
+      updateUsers(msg.users);
+      showToast(`${msg.name || "Jemand"} hat verlassen`);
+      closePeer(msg.id, true);
+      break;
+    case "speaker_start":
+      if (!msg.targets || msg.targets.includes(myId)) {
+        speakingFrom.set(msg.from, msg.name);
+        renderUsers();
+        updateStatusBar();
+      }
+      break;
+    case "speaker_stop":
+      speakingFrom.delete(msg.from);
+      closePeer(msg.from, true);
+      renderUsers();
+      updateStatusBar();
+      break;
+    case "offer":
+      handleOffer(msg);
+      break;
+    case "answer":
+      handleAnswer(msg);
+      break;
+    case "ice":
+      handleIce(msg);
+      break;
+  }
+}
+
+// ─── Show app ───
+function showApp() {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app-screen").classList.add("active");
+  document.getElementById("display-myname").textContent = myName;
+}
+
+// ─── Users ───
+function updateUsers(list) {
+  users.clear();
+  list.forEach(u => users.set(u.id, u));
+  // clean up selections for gone users
+  [...selectedUsers].forEach(id => { if (!users.has(id)) selectedUsers.delete(id); });
+  renderUsers();
+  document.getElementById("user-count").textContent = [...users.values()].filter(u => u.id !== myId).length;
+}
+
+function renderUsers() {
+  const grid = document.getElementById("users-grid");
+  const others = [...users.values()].filter(u => u.id !== myId);
+
+  if (others.length === 0) {
+    grid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;font-family:var(--mono);padding:0.5rem 0;">Warte auf andere Teilnehmer...</div>';
+    return;
+  }
+
+  grid.innerHTML = others.map(u => {
+    const isSel = selectedUsers.has(u.id);
+    const isSpk = speakingFrom.has(u.id);
+    let statusText = "● Online";
+    let cardClass = "";
+    let indicator = isSel ? "✓" : "";
+
+    if (isSpk) {
+      statusText = "spricht gerade...";
+      cardClass = "speaking-incoming";
+      indicator = "";
+    } else if (isSel) {
+      statusText = micActive ? "🔴 Live" : "Ausgewählt";
+      cardClass = "selected";
+    }
+
+    return `
+      <div class="user-card ${cardClass}" onclick="toggleUser('${u.id}')">
+        <div class="user-avatar">${getInitial(u.name)}</div>
+        <div class="user-info">
+          <div class="user-name">${u.name}</div>
+          <div class="user-status">${statusText}</div>
+        </div>
+        <div class="card-wave"><span></span><span></span><span></span></div>
+        <div class="user-indicator">${indicator}</div>
+      </div>`;
+  }).join('');
+}
+
+// ─── Select logic ───
+function toggleUser(id) {
+  allSelected = false;
+  document.getElementById("btn-all").classList.remove("active");
+
+  if (selectedUsers.has(id)) {
+    selectedUsers.delete(id);
+    if (micActive) stopStreamTo(id);
+  } else {
+    selectedUsers.add(id);
+    if (micActive) startStreamTo(id);
+  }
+  renderUsers();
+  updateStatusBar();
+  updateMicSubLabel();
+}
+
+function toggleAll() {
+  allSelected = !allSelected;
+  document.getElementById("btn-all").classList.toggle("active", allSelected);
+
+  if (allSelected) {
+    // Select everyone
+    [...users.values()].filter(u => u.id !== myId).forEach(u => {
+      if (!selectedUsers.has(u.id)) {
+        selectedUsers.add(u.id);
+        if (micActive) startStreamTo(u.id);
+      }
+    });
+  } else {
+    // Deselect all
+    [...selectedUsers].forEach(id => {
+      selectedUsers.delete(id);
+      if (micActive) stopStreamTo(id);
+    });
+  }
+  renderUsers();
+  updateStatusBar();
+  updateMicSubLabel();
+}
+
+// ─── Mic toggle ───
+async function onMicToggle() {
+  micActive = document.getElementById("mic-toggle-input").checked;
+
+  if (micActive) {
+    // Request mic
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      document.getElementById("perm-warn").classList.remove("show");
+    } catch(e) {
+      document.getElementById("perm-warn").classList.add("show");
+      document.getElementById("mic-toggle-input").checked = false;
+      micActive = false;
+      return;
+    }
+
+    // Connect to all currently selected
+    for (const id of selectedUsers) {
+      await startStreamTo(id);
+    }
+
+    if (selectedUsers.size > 0) {
+      const targets = [...selectedUsers];
+      wsSend({ type: "start_speaking", targets: allSelected ? null : targets });
+      setStatus(`🎙️ Du sprichst – ${allSelected ? "alle" : selectedUsers.size + " Person(en)"}`, "send");
+    } else {
+      setStatus("🎙️ Mikrofon an – wähle Empfänger aus", "idle");
+    }
+
+  } else {
+    // Stop everything
+    stopAllStreams();
+    wsSend({ type: "stop_speaking" });
+    setStatus("Bereit · Wähle Empfänger aus", "idle");
+  }
+
+  renderUsers();
+  updateMicSubLabel();
+}
+
+function updateMicSubLabel() {
+  const sub = document.getElementById("mic-sub-label");
+  if (!micActive) {
+    sub.textContent = "Aus – tippe Personen an zum Sprechen";
+  } else if (selectedUsers.size === 0) {
+    sub.textContent = "An – bitte Empfänger auswählen";
+  } else {
+    const names = [...selectedUsers].map(id => users.get(id)?.name || "?").join(", ");
+    sub.textContent = `Live mit: ${names}`;
+  }
+}
+
+function updateStatusBar() {
+  const recvNames = [...speakingFrom.values()].join(", ");
+  if (speakingFrom.size > 0) {
+    setStatus(`📡 ${recvNames} spricht...`, "recv");
+  } else if (micActive && selectedUsers.size > 0) {
+    setStatus(`🎙️ Du sprichst – ${allSelected ? "alle" : selectedUsers.size + " Person(en)"}`, "send");
+  } else if (micActive) {
+    setStatus("🎙️ Mikrofon an – wähle Empfänger aus", "idle");
+  } else {
+    setStatus("Bereit · Wähle Empfänger aus", "idle");
+  }
+}
+
+// ─── WebRTC outgoing ───
+async function startStreamTo(peerId) {
+  if (peerConnections.has(peerId)) return;
+  if (!localStream) return;
+
+  const pc = new RTCPeerConnection(ICE_CONFIG);
+  peerConnections.set(peerId, pc);
+
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate) wsSend({ type: "ice", to: peerId, candidate: e.candidate });
+  };
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  wsSend({ type: "offer", to: peerId, sdp: pc.localDescription });
+}
+
+function stopStreamTo(peerId) {
+  const pc = peerConnections.get(peerId);
+  if (pc) { pc.close(); peerConnections.delete(peerId); }
+}
+
+function stopAllStreams() {
+  peerConnections.forEach(pc => pc.close());
+  peerConnections.clear();
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+}
+
+// ─── WebRTC incoming ───
+async function handleOffer(msg) {
+  const pc = new RTCPeerConnection(ICE_CONFIG);
+  incomingPeers.set(msg.from, pc);
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate) wsSend({ type: "ice", to: msg.from, candidate: e.candidate });
+  };
+
+  pc.ontrack = (e) => {
+    const audio = new Audio();
+    audio.srcObject = e.streams[0];
+    audio.autoplay = true;
+    audio.play().catch(() => {});
+  };
+
+  await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  wsSend({ type: "answer", to: msg.from, sdp: pc.localDescription });
+}
+
+async function handleAnswer(msg) {
+  const pc = peerConnections.get(msg.from);
+  if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+}
+
+async function handleIce(msg) {
+  const pc = peerConnections.get(msg.from) || incomingPeers.get(msg.from);
+  if (pc && msg.candidate) {
+    try { await pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch {}
+  }
+}
+
+function closePeer(id, incoming = false) {
+  if (incoming) {
+    const pc = incomingPeers.get(id);
+    if (pc) { pc.close(); incomingPeers.delete(id); }
+  } else {
+    stopStreamTo(id);
+  }
+}
+
+// ─── Enter key ───
+document.getElementById("input-password").addEventListener("keydown", e => { if (e.key === "Enter") joinRoom(); });
+document.getElementById("input-name").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("input-password").focus(); });
+</script>
+</body>
+</html>
