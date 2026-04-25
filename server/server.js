@@ -19,6 +19,10 @@ const wss = new WebSocket.Server({ server });
 
 // clients: Map<id, { ws, name, role }>
 const clients = new Map();
+// pendingIce: Map<"fromId->toId", [candidates]> – gepuffert bis Offer gesendet
+const pendingIce = new Map();
+// offerSent: Set<"fromId->toId"> – Offer wurde bereits gesendet
+const offerSent = new Set();
 
 function broadcast(senderId, message) {
   const json = JSON.stringify(message);
@@ -33,7 +37,9 @@ function sendTo(targetId, message) {
   const target = clients.get(targetId);
   if (target && target.ws.readyState === WebSocket.OPEN) {
     target.ws.send(JSON.stringify(message));
+    return true;
   }
+  return false;
 }
 
 function getRoomInfo() {
@@ -67,7 +73,6 @@ wss.on("connection", (ws) => {
         clients.set(clientId, { ws, name: msg.name, role });
         console.log(`✅ ${msg.name} (${clientId.slice(0,4)}) beigetreten. Alle: ${[...clients.keys()].map(k=>k.slice(0,4)).join(', ')}`);
 
-        // Confirm join to this client
         ws.send(JSON.stringify({
           type: "joined",
           id: clientId,
@@ -75,7 +80,6 @@ wss.on("connection", (ws) => {
           users: getRoomInfo(),
         }));
 
-        // Notify others
         broadcast(clientId, {
           type: "user_joined",
           id: clientId,
@@ -98,17 +102,46 @@ wss.on("connection", (ws) => {
         break;
       }
 
-      // WebRTC signaling
-      case "offer":
-      case "answer":
+      case "offer": {
+        if (msg.to) {
+          const key = `${clientId}->${msg.to}`;
+          offerSent.add(key);
+          console.log(`📨 offer ${clientId.slice(0,4)} → ${msg.to.slice(0,4)}`);
+          sendTo(msg.to, { ...msg, from: clientId });
+
+          // Gepufferte ICE-Kandidaten jetzt senden
+          const iceKey = `${clientId}->${msg.to}`;
+          if (pendingIce.has(iceKey)) {
+            const candidates = pendingIce.get(iceKey);
+            console.log(`📬 Sende ${candidates.length} gepufferte ICE nach Offer`);
+            candidates.forEach(c => sendTo(msg.to, { type: "ice", from: clientId, to: msg.to, candidate: c }));
+            pendingIce.delete(iceKey);
+          }
+        } else {
+          broadcast(clientId, { ...msg, from: clientId });
+        }
+        break;
+      }
+
+      case "answer": {
+        if (msg.to) {
+          console.log(`📨 answer ${clientId.slice(0,4)} → ${msg.to.slice(0,4)}`);
+          sendTo(msg.to, { ...msg, from: clientId });
+        }
+        break;
+      }
+
       case "ice": {
         if (msg.to) {
-          const target = clients.get(msg.to);
-          console.log(`📨 ${msg.type} von ${clientId?.slice(0,4)} → ${msg.to?.slice(0,4)} (gefunden: ${!!target})`);
-          if (target) {
+          const key = `${clientId}->${msg.to}`;
+          if (offerSent.has(key)) {
+            // Offer bereits gesendet – ICE direkt weiterleiten
             sendTo(msg.to, { ...msg, from: clientId });
           } else {
-            console.log(`⚠️ Ziel ${msg.to} nicht gefunden! Bekannte IDs: ${[...clients.keys()].join(', ')}`);
+            // Offer noch nicht gesendet – puffern
+            if (!pendingIce.has(key)) pendingIce.set(key, []);
+            pendingIce.get(key).push(msg.candidate);
+            console.log(`📦 ICE gepuffert ${clientId.slice(0,4)} → ${msg.to.slice(0,4)} (${pendingIce.get(key).length})`);
           }
         } else {
           broadcast(clientId, { ...msg, from: clientId });
@@ -117,12 +150,11 @@ wss.on("connection", (ws) => {
       }
 
       case "start_speaking": {
-        // Tell specific targets (or all) that someone is about to speak
         const payload = {
           type: "speaker_start",
           from: clientId,
           name: clients.get(clientId)?.name,
-          targets: msg.targets, // null = all
+          targets: msg.targets,
         };
         if (msg.targets && msg.targets.length > 0) {
           msg.targets.forEach((tid) => sendTo(tid, payload));
@@ -153,6 +185,9 @@ wss.on("connection", (ws) => {
     if (clientId && clients.has(clientId)) {
       const name = clients.get(clientId)?.name;
       clients.delete(clientId);
+      // Gepufferte ICE und Offer-Status aufräumen
+      [...pendingIce.keys()].filter(k => k.includes(clientId)).forEach(k => pendingIce.delete(k));
+      [...offerSent].filter(k => k.includes(clientId)).forEach(k => offerSent.delete(k));
       broadcast(clientId, {
         type: "user_left",
         id: clientId,
