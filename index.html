@@ -23,7 +23,9 @@
       --red-bg: #ffd6d6;
       --text: #0a1628;
       --muted: #4a5a6a;
+      --accent: #0057b8;
       --sans: 'Barlow', sans-serif;
+      --version: "v0.5";
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -61,7 +63,17 @@
     }
     .logo p { font-size: 1rem; color: var(--muted); margin-top: 0.25rem; font-weight: 600; }
 
-    .login-form {
+    .version-badge {
+      display: inline-block;
+      background: #e06500;
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 0.2rem 0.7rem;
+      border-radius: 20px;
+      letter-spacing: 0.08em;
+      margin-top: 0.4rem;
+    }
       background: var(--panel);
       border: 2px solid var(--border);
       border-radius: 16px;
@@ -443,6 +455,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
+    <span class="version-badge">v0.6</span>
   </div>
   <div class="login-form">
     <div>
@@ -511,6 +524,12 @@
   <div class="permission-warn" id="perm-warn">
     ⚠️ Mikrofon-Erlaubnis benötigt.<br>Bitte im Browser erlauben und nochmal tippen.
   </div>
+
+  <!-- Debug Panel -->
+  <details style="margin-top:0.5rem;">
+    <summary style="font-size:0.8rem;font-weight:700;color:var(--muted);cursor:pointer;padding:0.5rem 0;">🔧 Debug-Log (bei Problemen öffnen)</summary>
+    <div id="debug-log" style="background:#fff;border:2px solid var(--border);border-radius:10px;padding:0.75rem;font-size:0.72rem;font-family:monospace;color:#333;max-height:200px;overflow-y:auto;margin-top:0.5rem;line-height:1.6;"></div>
+  </details>
 
 </div>
 
@@ -879,25 +898,39 @@ function updateStatusBar() {
   }
 }
 
+// ─── Debug Log ───
+function dbg(msg) {
+  console.log(msg);
+  const log = document.getElementById("debug-log");
+  if (!log) return;
+  const line = document.createElement("div");
+  line.textContent = new Date().toLocaleTimeString('de') + " " + msg;
+  log.prepend(line);
+  while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
 // ─── WebRTC outgoing ───
 async function startStreamTo(peerId) {
   if (peerConnections.has(peerId)) return;
-  if (!localStream) return;
+  if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
 
+  dbg(`📤 Verbinde zu ${users.get(peerId)?.name}...`);
   const pc = new RTCPeerConnection(ICE_CONFIG);
   peerConnections.set(peerId, pc);
 
-  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  localStream.getTracks().forEach(track => {
+    pc.addTrack(track, localStream);
+    dbg(`🎙️ Track: ${track.kind} (${track.label.slice(0,20)})`);
+  });
 
   pc.onicecandidate = (e) => {
     if (e.candidate) wsSend({ type: "ice", to: peerId, candidate: e.candidate });
   };
-
+  pc.oniceconnectionstatechange = () => dbg(`🧊 OUT-ICE ${users.get(peerId)?.name}: ${pc.iceConnectionState}`);
   pc.onconnectionstatechange = () => {
+    dbg(`🔗 OUT-Conn ${users.get(peerId)?.name}: ${pc.connectionState}`);
     if (pc.connectionState === "failed") {
-      pc.close();
-      peerConnections.delete(peerId);
-      // Retry after short delay
+      pc.close(); peerConnections.delete(peerId);
       setTimeout(() => { if (micActive && selectedUsers.has(peerId)) startStreamTo(peerId); }, 1000);
     }
   };
@@ -906,8 +939,9 @@ async function startStreamTo(peerId) {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     wsSend({ type: "offer", to: peerId, sdp: pc.localDescription });
+    dbg(`📨 Offer → ${users.get(peerId)?.name}`);
   } catch(e) {
-    console.error("Offer failed:", e);
+    dbg(`❌ Offer Fehler: ${e.message}`);
     peerConnections.delete(peerId);
   }
 }
@@ -928,24 +962,60 @@ function stopAllStreams() {
 
 // ─── WebRTC incoming ───
 async function handleOffer(msg) {
+  dbg(`📥 Offer von ${users.get(msg.from)?.name || msg.from}`);
+
+  // Alte Verbindung schließen falls vorhanden
+  if (incomingPeers.has(msg.from)) {
+    incomingPeers.get(msg.from).close();
+    incomingPeers.delete(msg.from);
+  }
+
   const pc = new RTCPeerConnection(ICE_CONFIG);
   incomingPeers.set(msg.from, pc);
 
   pc.onicecandidate = (e) => {
     if (e.candidate) wsSend({ type: "ice", to: msg.from, candidate: e.candidate });
   };
+  pc.oniceconnectionstatechange = () => dbg(`🧊 IN-ICE ${users.get(msg.from)?.name}: ${pc.iceConnectionState}`);
+  pc.onconnectionstatechange = () => dbg(`🔗 IN-Conn ${users.get(msg.from)?.name}: ${pc.connectionState}`);
 
   pc.ontrack = (e) => {
-    const audio = new Audio();
+    dbg(`🔊 Audio von ${users.get(msg.from)?.name}!`);
+    const audioId = `audio-${msg.from}`;
+    let audio = document.getElementById(audioId);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = audioId;
+      audio.autoplay = true;
+      audio.playsInline = true;
+      audio.controls = false;
+      document.body.appendChild(audio);
+    }
     audio.srcObject = e.streams[0];
-    audio.autoplay = true;
-    audio.play().catch(() => {});
+    const playPromise = audio.play();
+    if (playPromise) {
+      playPromise.then(() => dbg(`✅ Audio läuft!`)).catch(err => {
+        dbg(`⚠️ Autoplay blockiert – tippe auf den Bildschirm`);
+        const resume = () => {
+          audio.play().then(() => dbg(`✅ Audio nach Tipp!`)).catch(()=>{});
+          document.removeEventListener('touchstart', resume);
+          document.removeEventListener('click', resume);
+        };
+        document.addEventListener('touchstart', resume, { once: true });
+        document.addEventListener('click', resume, { once: true });
+      });
+    }
   };
 
-  await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  wsSend({ type: "answer", to: msg.from, sdp: pc.localDescription });
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    wsSend({ type: "answer", to: msg.from, sdp: pc.localDescription });
+    dbg(`📨 Answer → ${users.get(msg.from)?.name}`);
+  } catch(e) {
+    dbg(`❌ Answer Fehler: ${e.message}`);
+  }
 }
 
 async function handleAnswer(msg) {
