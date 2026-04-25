@@ -231,6 +231,22 @@
     .mic-toggle-label strong { font-size: 0.9rem; }
     .mic-toggle-label small { font-size: 0.75rem; color: var(--muted); font-family: var(--mono); }
 
+    .mic-toggle-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .mic-state-label {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      min-width: 2.5rem;
+      text-align: right;
+    }
+    .mic-state-label.on { color: var(--green); }
     .toggle-switch {
       position: relative;
       width: 52px;
@@ -460,13 +476,16 @@
   <!-- Mic toggle -->
   <div class="mic-toggle">
     <div class="mic-toggle-label">
-      <strong>🎙️ Mikrofon aktiv</strong>
-      <small id="mic-sub-label">Aus – tippe Personen an zum Sprechen</small>
+      <strong id="mic-toggle-title">🔇 Mikrofon AUS</strong>
+      <small id="mic-sub-label">Einschalten um zu sprechen</small>
     </div>
-    <label class="toggle-switch">
-      <input type="checkbox" id="mic-toggle-input" onchange="onMicToggle()" />
-      <div class="slider"></div>
-    </label>
+    <div class="mic-toggle-right">
+      <span class="mic-state-label" id="mic-state-label">AUS</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="mic-toggle-input" onchange="onMicToggle()" />
+        <div class="slider"></div>
+      </label>
+    </div>
   </div>
 
   <!-- All button -->
@@ -477,7 +496,7 @@
       <span>Alle gleichzeitig</span>
     </button>
 
-    <div class="section-label">Teilnehmer (<span id="user-count">0</span>)</div>
+    <div class="section-label">Teilnehmer (<span id="user-count">0</span>) <span onclick="wsSend({type:'ping'})" style="cursor:pointer;color:var(--muted);font-size:0.9em;" title="Aktualisieren">↻</span></div>
     <div class="users-grid" id="users-grid">
       <div style="color:var(--muted);font-size:0.85rem;font-family:var(--mono);padding:0.5rem 0;">
         Warte auf andere Teilnehmer...
@@ -497,7 +516,7 @@
 // ═══════════════════════════════════════════
 // CONFIG – nach Railway-Deploy anpassen
 // ═══════════════════════════════════════════
-const SERVER_URL = "wss://funkapp-production.up.railway.app"; // z.B. wss://funkapp.up.railway.app
+const SERVER_URL = "DEINE_RAILWAY_URL_HIER"; // z.B. wss://funkapp.up.railway.app
 
 // ═══════════════════════════════════════════
 let ws = null;
@@ -557,16 +576,35 @@ function connectWS(password) {
 
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: "join", id: myId, name: myName, password }));
+    // Heartbeat alle 20 Sekunden
+    if (window._heartbeat) clearInterval(window._heartbeat);
+    window._heartbeat = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 20000);
   };
+
   ws.onmessage = (e) => {
     let msg; try { msg = JSON.parse(e.data); } catch { return; }
     handleMessage(msg);
   };
+
   ws.onclose = () => {
-    showToast("Verbindung getrennt – bitte neu laden");
+    clearInterval(window._heartbeat);
     document.getElementById("conn-dot").style.background = "var(--red)";
+    showToast("Verbindung getrennt – versuche neu...");
+    // Auto-Reconnect nach 3 Sekunden
+    setTimeout(() => {
+      if (myName && myId) {
+        document.getElementById("conn-dot").style.background = "var(--amber)";
+        connectWS(window._lastPassword);
+      }
+    }, 3000);
   };
+
   ws.onerror = () => showError("Server nicht erreichbar");
+  window._lastPassword = password;
 }
 
 function wsSend(data) {
@@ -610,8 +648,8 @@ function handleMessage(msg) {
       renderUsers();
       updateStatusBar();
       break;
-    case "offer":
-      handleOffer(msg);
+    case "pong":
+      if (msg.users) updateUsers(msg.users);
       break;
     case "answer":
       handleAnswer(msg);
@@ -684,10 +722,16 @@ function toggleUser(id) {
 
   if (selectedUsers.has(id)) {
     selectedUsers.delete(id);
-    if (micActive) stopStreamTo(id);
+    if (micActive) {
+      stopStreamTo(id);
+      wsSend({ type: "start_speaking", targets: [...selectedUsers] });
+    }
   } else {
     selectedUsers.add(id);
-    if (micActive) startStreamTo(id);
+    if (micActive) {
+      startStreamTo(id);
+      wsSend({ type: "start_speaking", targets: [...selectedUsers] });
+    }
   }
   renderUsers();
   updateStatusBar();
@@ -721,9 +765,14 @@ function toggleAll() {
 // ─── Mic toggle ───
 async function onMicToggle() {
   micActive = document.getElementById("mic-toggle-input").checked;
+  const stateLabel = document.getElementById("mic-state-label");
+  const titleLabel = document.getElementById("mic-toggle-title");
 
   if (micActive) {
-    // Request mic
+    stateLabel.textContent = "AN";
+    stateLabel.classList.add("on");
+    titleLabel.textContent = "🎙️ Mikrofon AN";
+
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       document.getElementById("perm-warn").classList.remove("show");
@@ -731,10 +780,12 @@ async function onMicToggle() {
       document.getElementById("perm-warn").classList.add("show");
       document.getElementById("mic-toggle-input").checked = false;
       micActive = false;
+      stateLabel.textContent = "AUS";
+      stateLabel.classList.remove("on");
+      titleLabel.textContent = "🔇 Mikrofon AUS";
       return;
     }
 
-    // Connect to all currently selected
     for (const id of selectedUsers) {
       await startStreamTo(id);
     }
@@ -744,11 +795,13 @@ async function onMicToggle() {
       wsSend({ type: "start_speaking", targets: allSelected ? null : targets });
       setStatus(`🎙️ Du sprichst – ${allSelected ? "alle" : selectedUsers.size + " Person(en)"}`, "send");
     } else {
-      setStatus("🎙️ Mikrofon an – wähle Empfänger aus", "idle");
+      setStatus("🎙️ Mikrofon AN – wähle Empfänger aus", "idle");
     }
 
   } else {
-    // Stop everything
+    stateLabel.textContent = "AUS";
+    stateLabel.classList.remove("on");
+    titleLabel.textContent = "🔇 Mikrofon AUS";
     stopAllStreams();
     wsSend({ type: "stop_speaking" });
     setStatus("Bereit · Wähle Empfänger aus", "idle");
