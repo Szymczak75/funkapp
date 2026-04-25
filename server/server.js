@@ -65,6 +65,7 @@ wss.on("connection", (ws) => {
         clientId = msg.id;
         const role = clients.size === 0 ? "admin" : "listener";
         clients.set(clientId, { ws, name: msg.name, role });
+        console.log(`✅ ${msg.name} (${clientId.slice(0,4)}) beigetreten. Alle: ${[...clients.keys()].map(k=>k.slice(0,4)).join(', ')}`);
 
         // Confirm join to this client
         ws.send(JSON.stringify({
@@ -102,9 +103,14 @@ wss.on("connection", (ws) => {
       case "answer":
       case "ice": {
         if (msg.to) {
-          sendTo(msg.to, { ...msg, from: clientId });
+          const target = clients.get(msg.to);
+          console.log(`📨 ${msg.type} von ${clientId?.slice(0,4)} → ${msg.to?.slice(0,4)} (gefunden: ${!!target})`);
+          if (target) {
+            sendTo(msg.to, { ...msg, from: clientId });
+          } else {
+            console.log(`⚠️ Ziel ${msg.to} nicht gefunden! Bekannte IDs: ${[...clients.keys()].join(', ')}`);
+          }
         } else {
-          // broadcast to all (for "all" mode)
           broadcast(clientId, { ...msg, from: clientId });
         }
         break;
