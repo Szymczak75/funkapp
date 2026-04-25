@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #cc0000;
+      background: #7b2fbe;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -455,7 +455,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v0.8</span>
+    <span class="version-badge">v0.9</span>
   </div>
   <div class="login-form">
     <div>
@@ -924,35 +924,41 @@ async function startStreamTo(peerId) {
   if (peerConnections.has(peerId)) return;
   if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
 
-  dbg(`📤 Verbinde zu ${users.get(peerId)?.name}...`);
+  dbg(`📤 Verbinde zu ${users.get(peerId)?.name} (ich=${myId.slice(0,4)}, sie=${peerId.slice(0,4)})`);
+
   const pc = new RTCPeerConnection(ICE_CONFIG);
   peerConnections.set(peerId, pc);
 
   localStream.getTracks().forEach(track => {
     pc.addTrack(track, localStream);
-    dbg(`🎙️ Track: ${track.kind} (${track.label.slice(0,20)})`);
+    dbg(`🎙️ Track: ${track.kind}`);
   });
 
   pc.onicecandidate = (e) => {
     if (e.candidate) wsSend({ type: "ice", to: peerId, candidate: e.candidate });
   };
-  pc.oniceconnectionstatechange = () => dbg(`🧊 OUT-ICE ${users.get(peerId)?.name}: ${pc.iceConnectionState}`);
+  pc.oniceconnectionstatechange = () => dbg(`🧊 ${users.get(peerId)?.name}: ${pc.iceConnectionState}`);
   pc.onconnectionstatechange = () => {
-    dbg(`🔗 OUT-Conn ${users.get(peerId)?.name}: ${pc.connectionState}`);
+    dbg(`🔗 ${users.get(peerId)?.name}: ${pc.connectionState}`);
     if (pc.connectionState === "failed") {
       pc.close(); peerConnections.delete(peerId);
-      setTimeout(() => { if (micActive && selectedUsers.has(peerId)) startStreamTo(peerId); }, 1000);
+      setTimeout(() => { if (micActive && selectedUsers.has(peerId)) startStreamTo(peerId); }, 2000);
     }
   };
 
-  try {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    wsSend({ type: "offer", to: peerId, sdp: pc.localDescription });
-    dbg(`📨 Offer → ${users.get(peerId)?.name}`);
-  } catch(e) {
-    dbg(`❌ Offer Fehler: ${e.message}`);
-    peerConnections.delete(peerId);
+  // Nur der mit der kleineren ID sendet den Offer - verhindert gleichzeitige Offers
+  if (myId < peerId) {
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      wsSend({ type: "offer", to: peerId, sdp: pc.localDescription });
+      dbg(`📨 Offer → ${users.get(peerId)?.name}`);
+    } catch(e) {
+      dbg(`❌ Offer Fehler: ${e.message}`);
+      peerConnections.delete(peerId);
+    }
+  } else {
+    dbg(`⏳ Warte auf Offer von ${users.get(peerId)?.name}...`);
   }
 }
 
@@ -974,20 +980,32 @@ function stopAllStreams() {
 async function handleOffer(msg) {
   dbg(`📥 Offer von ${users.get(msg.from)?.name || msg.from}`);
 
-  // Alte Verbindung schließen falls vorhanden
+  // Alte Verbindung schließen
   if (incomingPeers.has(msg.from)) {
     incomingPeers.get(msg.from).close();
     incomingPeers.delete(msg.from);
+  }
+  // Auch outgoing PC schließen falls vorhanden (Kollision)
+  if (peerConnections.has(msg.from) && myId > msg.from) {
+    dbg(`🔄 Kollision – ich gebe nach und empfange`);
+    peerConnections.get(msg.from).close();
+    peerConnections.delete(msg.from);
   }
 
   const pc = new RTCPeerConnection(ICE_CONFIG);
   incomingPeers.set(msg.from, pc);
 
+  // Wenn Mikrofon aktiv → eigenen Stream auch hinzufügen (bidirektional)
+  if (localStream && micActive) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    dbg(`🎙️ Eigener Stream zu eingehender Verbindung hinzugefügt`);
+  }
+
   pc.onicecandidate = (e) => {
     if (e.candidate) wsSend({ type: "ice", to: msg.from, candidate: e.candidate });
   };
-  pc.oniceconnectionstatechange = () => dbg(`🧊 IN-ICE ${users.get(msg.from)?.name}: ${pc.iceConnectionState}`);
-  pc.onconnectionstatechange = () => dbg(`🔗 IN-Conn ${users.get(msg.from)?.name}: ${pc.connectionState}`);
+  pc.oniceconnectionstatechange = () => dbg(`🧊 IN ${users.get(msg.from)?.name}: ${pc.iceConnectionState}`);
+  pc.onconnectionstatechange = () => dbg(`🔗 IN ${users.get(msg.from)?.name}: ${pc.connectionState}`);
 
   pc.ontrack = (e) => {
     dbg(`🔊 Audio von ${users.get(msg.from)?.name}!`);
@@ -998,23 +1016,16 @@ async function handleOffer(msg) {
       audio.id = audioId;
       audio.autoplay = true;
       audio.playsInline = true;
-      audio.controls = false;
       document.body.appendChild(audio);
     }
     audio.srcObject = e.streams[0];
-    const playPromise = audio.play();
-    if (playPromise) {
-      playPromise.then(() => dbg(`✅ Audio läuft!`)).catch(err => {
-        dbg(`⚠️ Autoplay blockiert – tippe auf den Bildschirm`);
-        const resume = () => {
-          audio.play().then(() => dbg(`✅ Audio nach Tipp!`)).catch(()=>{});
-          document.removeEventListener('touchstart', resume);
-          document.removeEventListener('click', resume);
-        };
-        document.addEventListener('touchstart', resume, { once: true });
-        document.addEventListener('click', resume, { once: true });
-      });
-    }
+    const p = audio.play();
+    if (p) p.then(() => dbg(`✅ Audio läuft!`)).catch(err => {
+      dbg(`⚠️ Autoplay blockiert – bitte Bildschirm antippen`);
+      const resume = () => { audio.play().catch(()=>{}); };
+      document.addEventListener('touchstart', resume, { once: true });
+      document.addEventListener('click', resume, { once: true });
+    });
   };
 
   try {
@@ -1029,14 +1040,28 @@ async function handleOffer(msg) {
 }
 
 async function handleAnswer(msg) {
+  dbg(`📥 Answer von ${users.get(msg.from)?.name || msg.from}`);
   const pc = peerConnections.get(msg.from);
-  if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+  if (pc) {
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+      dbg(`✅ Answer gesetzt für ${users.get(msg.from)?.name}`);
+    } catch(e) {
+      dbg(`❌ Answer Fehler: ${e.message}`);
+    }
+  } else {
+    dbg(`⚠️ Keine PC gefunden für Answer von ${users.get(msg.from)?.name}`);
+  }
 }
 
 async function handleIce(msg) {
   const pc = peerConnections.get(msg.from) || incomingPeers.get(msg.from);
   if (pc && msg.candidate) {
-    try { await pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch {}
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+    } catch(e) {
+      dbg(`⚠️ ICE Fehler: ${e.message}`);
+    }
   }
 }
 
