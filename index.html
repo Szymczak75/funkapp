@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #1a7a3a;
+      background: #cc0000;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -455,7 +455,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v0.7</span>
+    <span class="version-badge">v0.8</span>
   </div>
   <div class="login-form">
     <div>
@@ -559,29 +559,30 @@ let speakingFrom = new Map();    // peerId → true (wer gerade zu mir spricht)
 const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.relay.metered.ca:80" },
+    { urls: "stun:stun.l.google.com:19302" },
     {
-      urls: "turn:global.relay.metered.ca:80",
+      urls: "turn:standard.relay.metered.ca:80",
       username: "ec63a95242a851e5ae2281a8",
       credential: "BGGPS4JqGsYXYGtc"
     },
     {
-      urls: "turn:global.relay.metered.ca:80?transport=tcp",
+      urls: "turn:standard.relay.metered.ca:80?transport=tcp",
       username: "ec63a95242a851e5ae2281a8",
       credential: "BGGPS4JqGsYXYGtc"
     },
     {
-      urls: "turn:global.relay.metered.ca:443",
+      urls: "turn:standard.relay.metered.ca:443",
       username: "ec63a95242a851e5ae2281a8",
       credential: "BGGPS4JqGsYXYGtc"
     },
     {
-      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      urls: "turns:standard.relay.metered.ca:443?transport=tcp",
       username: "ec63a95242a851e5ae2281a8",
       credential: "BGGPS4JqGsYXYGtc"
     }
   ],
   iceCandidatePoolSize: 10,
-  iceTransportPolicy: "all",
+  iceTransportPolicy: "relay",
 };
 
 // ─── Wake Lock & Visibility ───
