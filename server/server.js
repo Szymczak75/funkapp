@@ -137,7 +137,7 @@ wss.on("connection", (ws) => {
       }
 
       case "ping": {
-        ws.send(JSON.stringify({ type: "pong" }));
+        ws.send(JSON.stringify({ type: "pong", users: getRoomInfo() }));
         break;
       }
     }
