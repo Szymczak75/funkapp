@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #e65100;
+      background: #1565c0;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -413,6 +413,105 @@
     .card-wave span:nth-child(2){height:13px;animation-delay:0.1s}
     .card-wave span:nth-child(3){height:7px;animation-delay:0.2s}
 
+    /* ─── HELP MODAL ─── */
+    .help-btn {
+      background: var(--blue-light);
+      border: 2px solid var(--blue);
+      border-radius: 50%;
+      width: 36px; height: 36px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--blue);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .help-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .help-overlay.open { display: flex; }
+    .help-modal {
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 500px;
+      max-height: 85dvh;
+      overflow-y: auto;
+    }
+    .help-modal h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--blue);
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .help-close {
+      margin-left: auto;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 0;
+    }
+    .help-section {
+      margin-bottom: 1.2rem;
+    }
+    .help-section h3 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.6rem;
+      border-bottom: 2px solid var(--bg);
+      padding-bottom: 0.3rem;
+    }
+    .help-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .help-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      width: 2rem;
+      text-align: center;
+    }
+    .help-text strong {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .help-text span {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .help-tip {
+      background: var(--blue-light);
+      border-left: 4px solid var(--blue);
+      border-radius: 0 8px 8px 0;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      color: var(--blue-dark);
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
     /* ─── PERMISSION WARN ─── */
     .permission-warn {
       background: var(--amber-bg);
@@ -455,7 +554,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v1.4</span>
+    <span class="version-badge">v1.5</span>
   </div>
   <div class="login-form">
     <div>
@@ -479,8 +578,99 @@
       <div class="app-title">📻 FUNKAPP</div>
       <div class="my-name-tag">Eingeloggt als: <span id="display-myname"></span></div>
     </div>
-    <div class="status-dot" id="conn-dot"></div>
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <button class="help-btn" onclick="document.getElementById('help-overlay').classList.add('open')">?</button>
+      <div class="status-dot" id="conn-dot"></div>
+    </div>
   </header>
+
+  <!-- Help Modal -->
+  <div class="help-overlay" id="help-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="help-modal">
+      <h2>📻 FunkApp – Anleitung
+        <button class="help-close" onclick="document.getElementById('help-overlay').classList.remove('open')">✕</button>
+      </h2>
+
+      <div class="help-section">
+        <h3>🚀 Schnellstart</h3>
+        <div class="help-row">
+          <div class="help-icon">1️⃣</div>
+          <div class="help-text">
+            <strong>Mikrofon einschalten</strong>
+            <span>Den Schalter "Mikrofon AUS → AN" umlegen. Browser fragt nach Erlaubnis → Erlauben.</span>
+          </div>
+        </div>
+        <div class="help-row">
+          <div class="help-icon">2️⃣</div>
+          <div class="help-text">
+            <strong>Empfänger auswählen</strong>
+            <span>Person antippen → grün markiert = aktiv. Nochmal antippen = abwählen.</span>
+          </div>
+        </div>
+        <div class="help-row">
+          <div class="help-icon">3️⃣</div>
+          <div class="help-text">
+            <strong>Sprechen</strong>
+            <span>Einfach sprechen – alle ausgewählten Personen hören dich sofort.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <h3>📢 Sendemodi</h3>
+        <div class="help-row">
+          <div class="help-icon">📢</div>
+          <div class="help-text">
+            <strong>Alle gleichzeitig</strong>
+            <span>Klicke "Alle gleichzeitig" – alle Teilnehmer hören dich.</span>
+          </div>
+        </div>
+        <div class="help-row">
+          <div class="help-icon">👤</div>
+          <div class="help-text">
+            <strong>Einzelperson</strong>
+            <span>Nur eine Person antippen – nur sie hört dich. Ideal für persönliche Tipps.</span>
+          </div>
+        </div>
+        <div class="help-row">
+          <div class="help-icon">👥</div>
+          <div class="help-text">
+            <strong>Gruppe</strong>
+            <span>Mehrere Personen antippen – nur die Ausgewählten hören dich.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <h3>🎨 Statusanzeigen</h3>
+        <div class="help-row">
+          <div class="help-icon">🟢</div>
+          <div class="help-text">
+            <strong>Grün = Du sprichst</strong>
+            <span>Statusbalken und Personenkarte leuchten grün.</span>
+          </div>
+        </div>
+        <div class="help-row">
+          <div class="help-icon">🟡</div>
+          <div class="help-text">
+            <strong>Gelb = Jemand spricht zu dir</strong>
+            <span>Statusbalken und Personenkarte leuchten orange – mit Wellenanimation.</span>
+          </div>
+        </div>
+        <div class="help-row">
+          <div class="help-icon">🔴</div>
+          <div class="help-text">
+            <strong>Roter Punkt = Live</strong>
+            <span>Auf der Personenkarte: diese Person ist gerade ausgewählt und sendet an dich.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-tip">
+        💡 <strong>Tipp:</strong> Lasse die App immer geöffnet und den Bildschirm aktiv – so verpasst du keine Nachrichten!
+      </div>
+    </div>
+  </div>
 
   <!-- Status -->
   <div class="status-bar" id="status-bar">
