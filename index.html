@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #2e7d32;
+      background: #e65100;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -557,7 +557,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v1.8</span>
+    <span class="version-badge">v1.9</span>
   </div>
   <div class="login-form">
     <div>
@@ -1243,16 +1243,17 @@ async function ensurePeer(peerId) {
 async function startStreamTo(peerId) {
   if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
 
-  // Bestehende Verbindung: Track ersetzen oder neu starten
+  // Bestehende Verbindung: Track wieder aktivieren
   if (peers.has(peerId)) {
     const pc = peers.get(peerId);
     const senders = pc.getSenders();
     if (senders.length > 0) {
-      dbg(`🔄 Track aktualisiert für ${users.get(peerId)?.name}`);
       localStream.getTracks().forEach(track => {
+        track.enabled = true; // ← wichtig!
         const sender = senders.find(s => s.track?.kind === track.kind);
         if (sender) sender.replaceTrack(track);
       });
+      dbg(`🔄 Track reaktiviert für ${users.get(peerId)?.name}`);
       return;
     }
     pc.close();
@@ -1276,12 +1277,13 @@ async function startStreamTo(peerId) {
 function stopStreamTo(peerId) {
   const pc = peers.get(peerId);
   if (pc) {
-    // Nur eigene Tracks stummschalten, Verbindung offen lassen
     pc.getSenders().forEach(sender => {
       if (sender.track) sender.track.enabled = false;
     });
     dbg(`🔇 Senden zu ${users.get(peerId)?.name} gestoppt`);
   }
+  // Auch localStream Tracks deaktivieren
+  if (localStream) localStream.getTracks().forEach(t => t.enabled = false);
 }
 
 function stopAllStreams() {
