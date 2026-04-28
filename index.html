@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #1565c0;
+      background: #2e7d32;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -327,91 +327,94 @@
     .btn-all .btn-all-icon { font-size: 1.4rem; }
     .btn-all:active { transform: scale(0.98); }
 
-    /* ─── USER CARDS ─── */
+    /* ─── USER ROWS (DUPLEX) ─── */
     .users-grid {
       display: flex;
       flex-direction: column;
       gap: 0.6rem;
     }
 
-    .user-card {
+    .user-row {
       background: var(--panel);
       border: 3px solid var(--border);
       border-radius: 14px;
-      padding: 1rem 1.2rem;
+      display: flex;
+      align-items: stretch;
+      overflow: hidden;
+      box-shadow: 0 2px 8px var(--shadow);
+      min-height: 72px;
+    }
+
+    .user-row-name {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      cursor: pointer;
-      transition: all 0.15s;
-      user-select: none;
-      -webkit-user-select: none;
-      box-shadow: 0 2px 8px var(--shadow);
+      padding: 0 1rem;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+      min-width: 90px;
+      max-width: 90px;
+      border-right: 3px solid var(--border);
+      word-break: break-word;
+      line-height: 1.2;
     }
-    .user-card.selected {
-      border-color: var(--green);
-      background: var(--green-bg);
-    }
-    .user-card.speaking-incoming {
-      border-color: var(--amber);
-      background: var(--amber-bg);
-    }
-    .user-card:active { transform: scale(0.98); }
 
-    .user-avatar {
-      width: 72px; height: 46px;
-      border-radius: 10px;
-      background: var(--bg);
+    .user-row-right {
       display: flex;
+      flex: 1;
+    }
+
+    .row-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 0.9rem;
-      font-weight: 800;
-      flex-shrink: 0;
-      font-family: var(--sans);
-      color: var(--blue);
-      border: 2px solid var(--border);
-      transition: all 0.2s;
-      letter-spacing: 0.04em;
+      padding: 0.6rem 0.4rem;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: all 0.15s;
+      gap: 0.2rem;
+      border: none;
+      background: none;
+    }
+    .row-btn:active { transform: scale(0.96); }
+
+    .send-btn { border-right: 2px solid var(--border); }
+
+    .row-btn-label {
+      font-size: 0.65rem;
+      font-weight: 700;
       text-transform: uppercase;
-      padding: 0 6px;
-      overflow: hidden;
-    }
-    .user-card.selected .user-avatar {
-      border-color: var(--green);
-      color: var(--green);
-      background: #fff;
-    }
-    .user-card.speaking-incoming .user-avatar {
-      border-color: var(--amber);
-      color: var(--amber);
-      background: #fff;
+      letter-spacing: 0.08em;
+      color: var(--muted);
     }
 
-    .user-info { flex: 1; min-width: 0; }
-    .user-name { font-weight: 700; font-size: 1.15rem; color: var(--text); }
-    .user-status { font-size: 0.85rem; color: var(--muted); font-weight: 600; margin-top: 0.15rem; }
-    .user-card.selected .user-status { color: var(--green); }
-    .user-card.speaking-incoming .user-status { color: var(--amber); }
-
-    .user-indicator { font-size: 1.4rem; }
-
-    .card-wave {
-      display: none;
-      gap: 2px;
-      align-items: center;
+    .row-btn-state {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.05em;
     }
-    .user-card.speaking-incoming .card-wave { display: flex; }
-    .card-wave span {
-      display: block;
-      width: 3px;
-      background: var(--amber);
-      border-radius: 2px;
-      animation: wave-bar 0.5s ease-in-out infinite alternate;
+
+    /* SEND aktiv */
+    .row-btn.send-active {
+      background: var(--green-bg);
     }
-    .card-wave span:nth-child(1){height:5px;animation-delay:0s}
-    .card-wave span:nth-child(2){height:13px;animation-delay:0.1s}
-    .card-wave span:nth-child(3){height:7px;animation-delay:0.2s}
+    .row-btn.send-active .row-btn-label { color: var(--green); }
+    .row-btn.send-active .row-btn-state { color: var(--green); }
+
+    /* RECV aktiv */
+    .row-btn.recv-active {
+      background: var(--amber-bg);
+    }
+    .row-btn.recv-active .row-btn-label { color: var(--amber); }
+    .row-btn.recv-active .row-btn-state { color: var(--amber); }
+
+    /* Recv-Button ist nicht klickbar */
+    .recv-btn { cursor: default; }
+    .recv-btn:active { transform: none; }
 
     /* ─── HELP MODAL ─── */
     .help-btn {
@@ -554,7 +557,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v1.5</span>
+    <span class="version-badge">v1.8</span>
   </div>
   <div class="login-form">
     <div>
@@ -697,15 +700,21 @@
 
   <!-- All button -->
   <div>
-    <div class="section-label">Schnellauswahl</div>
-    <button class="btn-all" id="btn-all" onclick="toggleAll()">
-      <span class="btn-all-icon">📢</span>
-      <span>Alle gleichzeitig</span>
-    </button>
-
     <div class="section-label">Teilnehmer (<span id="user-count">0</span>) <span onclick="wsSend({type:'ping'})" style="cursor:pointer;color:var(--muted);font-size:0.9em;" title="Aktualisieren">↻</span></div>
+
+    <!-- Alle-Zeile -->
+    <div class="user-row" id="row-all">
+      <div class="user-row-name">📢 Alle</div>
+      <div class="user-row-right">
+        <div class="row-btn send-btn" id="send-all" onclick="toggleSendAll()">
+          <span class="row-btn-label">Ich zu allen</span>
+          <span class="row-btn-state">STUMM</span>
+        </div>
+      </div>
+    </div>
+
     <div class="users-grid" id="users-grid">
-      <div style="color:var(--muted);font-size:0.85rem;font-family:var(--mono);padding:0.5rem 0;">
+      <div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0;">
         Warte auf andere Teilnehmer...
       </div>
     </div>
@@ -742,9 +751,11 @@ let allSelected = false;
 let micActive = false;           // Toggle-Schalter oben
 let localStream = null;
 
-let peerConnections = new Map(); // peerId → RTCPeerConnection (outgoing, ich spreche)
-let incomingPeers = new Map();   // peerId → RTCPeerConnection (incoming, jemand spricht zu mir)
-let speakingFrom = new Map();    // peerId → true (wer gerade zu mir spricht)
+let peerConnections = new Map(); // veraltet - wird nicht mehr benutzt
+let incomingPeers = new Map();   // veraltet - wird nicht mehr benutzt
+let speakingFrom = new Map();    // peerId → name (wer gerade zu mir spricht)
+
+const pendingCandidates = new Map(); // peerId → [candidates]
 
 const ICE_CONFIG = {
   iceServers: [
@@ -805,7 +816,15 @@ function showToast(msg, ms = 2500) {
   setTimeout(() => t.classList.remove("show"), ms);
 }
 
-function genId() { return Math.random().toString(36).slice(2, 10); }
+function genId() {
+  // Immer dieselbe ID – auch nach Reconnect
+  let id = sessionStorage.getItem('funkapp_id');
+  if (!id) {
+    id = Math.random().toString(36).slice(2, 10);
+    sessionStorage.setItem('funkapp_id', id);
+  }
+  return id;
+}
 function getInitial(name) { return name ? name.slice(0, 5).toUpperCase() : "?"; }
 
 function setStatus(text, mode = "idle") {
@@ -821,10 +840,26 @@ function joinRoom() {
   const pw   = document.getElementById("input-password").value;
   if (!name) { showToast("Bitte Namen eingeben"); return; }
   if (!pw)   { showToast("Bitte Passwort eingeben"); return; }
+  // Speichern für Auto-Login
+  sessionStorage.setItem('funkapp_name', name);
+  sessionStorage.setItem('funkapp_pw', pw);
   myName = name;
   myId   = genId();
   connectWS(pw);
 }
+
+// Auto-Login wenn Daten vorhanden
+window.addEventListener('load', () => {
+  const name = sessionStorage.getItem('funkapp_name');
+  const pw   = sessionStorage.getItem('funkapp_pw');
+  if (name && pw) {
+    document.getElementById("input-name").value = name;
+    document.getElementById("input-password").value = pw;
+    myName = name;
+    myId   = genId();
+    connectWS(pw);
+  }
+});
 
 // ─── WebSocket ───
 function connectWS(password) {
@@ -851,6 +886,12 @@ function connectWS(password) {
     clearInterval(window._heartbeat);
     document.getElementById("conn-dot").style.background = "var(--red)";
     showToast("Verbindung getrennt – versuche neu...");
+    // Alle WebRTC Verbindungen schließen
+    peerConnections.forEach(pc => pc.close());
+    peerConnections.clear();
+    incomingPeers.forEach(pc => pc.close());
+    incomingPeers.clear();
+    speakingFrom.clear();
     // Auto-Reconnect nach 3 Sekunden
     setTimeout(() => {
       if (myName && myId) {
@@ -879,6 +920,14 @@ function handleMessage(msg) {
     case "joined":
       updateUsers(msg.users);
       showApp();
+      // Nach Reconnect: Verbindungen zu ausgewählten Usern neu aufbauen
+      if (micActive && selectedUsers.size > 0) {
+        setTimeout(() => {
+          selectedUsers.forEach(id => {
+            if (users.has(id)) startStreamTo(id);
+          });
+        }, 500);
+      }
       break;
     case "error":
       showError(msg.message);
@@ -890,7 +939,7 @@ function handleMessage(msg) {
     case "user_left":
       updateUsers(msg.users);
       showToast(`${msg.name || "Jemand"} hat verlassen`);
-      closePeer(msg.id, true);
+      closePeer(msg.id);
       break;
     case "speaker_start":
       if (!msg.targets || msg.targets.includes(myId)) {
@@ -941,46 +990,43 @@ function updateUsers(list) {
 function renderUsers() {
   const grid = document.getElementById("users-grid");
   const others = [...users.values()].filter(u => u.id !== myId);
+  document.getElementById("user-count").textContent = others.length;
 
   if (others.length === 0) {
-    grid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;font-family:var(--mono);padding:0.5rem 0;">Warte auf andere Teilnehmer...</div>';
+    grid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0;">Warte auf andere Teilnehmer...</div>';
+    updateSendAllBtn();
     return;
   }
 
   grid.innerHTML = others.map(u => {
-    const isSel = selectedUsers.has(u.id);
-    const isSpk = speakingFrom.has(u.id);
-    let statusText = "● Online";
-    let cardClass = "";
-    let indicator = isSel ? "✓" : "";
-
-    if (isSpk) {
-      statusText = "spricht gerade...";
-      cardClass = "speaking-incoming";
-      indicator = "";
-    } else if (isSel) {
-      statusText = micActive ? "🔴 Live" : "Ausgewählt";
-      cardClass = "selected";
-    }
+    const isSending = selectedUsers.has(u.id);
+    const isReceiving = speakingFrom.has(u.id);
+    const sendClass = isSending ? "send-active" : "";
+    const sendState = isSending ? (micActive ? "VERBUNDEN" : "AUSGEWÄHLT") : "STUMM";
+    const recvClass = isReceiving ? "recv-active" : "";
+    const recvState = isReceiving ? "VERBUNDEN" : "STUMM";
 
     return `
-      <div class="user-card ${cardClass}" onclick="toggleUser('${u.id}')">
-        <div class="user-avatar">${getInitial(u.name)}</div>
-        <div class="user-info">
-          <div class="user-name">${u.name}</div>
-          <div class="user-status">${statusText}</div>
+      <div class="user-row">
+        <div class="user-row-name">${u.name}</div>
+        <div class="user-row-right">
+          <div class="row-btn send-btn ${sendClass}" onclick="toggleUser('${u.id}')">
+            <span class="row-btn-label">Ich zu ihm</span>
+            <span class="row-btn-state">${sendState}</span>
+          </div>
+          <div class="row-btn recv-btn ${recvClass}">
+            <span class="row-btn-label">Er zu mir</span>
+            <span class="row-btn-state">${recvState}</span>
+          </div>
         </div>
-        <div class="card-wave"><span></span><span></span><span></span></div>
-        <div class="user-indicator">${indicator}</div>
       </div>`;
   }).join('');
+
+  updateSendAllBtn();
 }
 
 // ─── Select logic ───
 function toggleUser(id) {
-  allSelected = false;
-  document.getElementById("btn-all").classList.remove("active");
-
   if (selectedUsers.has(id)) {
     selectedUsers.delete(id);
     if (micActive) {
@@ -999,28 +1045,38 @@ function toggleUser(id) {
   updateMicSubLabel();
 }
 
-function toggleAll() {
-  allSelected = !allSelected;
-  document.getElementById("btn-all").classList.toggle("active", allSelected);
+function toggleSendAll() {
+  const others = [...users.values()].filter(u => u.id !== myId);
+  allSelected = !others.every(u => selectedUsers.has(u.id));
 
   if (allSelected) {
-    // Select everyone
-    [...users.values()].filter(u => u.id !== myId).forEach(u => {
+    others.forEach(u => {
       if (!selectedUsers.has(u.id)) {
         selectedUsers.add(u.id);
         if (micActive) startStreamTo(u.id);
       }
     });
+    if (micActive) wsSend({ type: "start_speaking", targets: null });
   } else {
-    // Deselect all
     [...selectedUsers].forEach(id => {
       selectedUsers.delete(id);
       if (micActive) stopStreamTo(id);
     });
+    if (micActive) wsSend({ type: "stop_speaking" });
   }
   renderUsers();
   updateStatusBar();
   updateMicSubLabel();
+}
+
+function updateSendAllBtn() {
+  const allBtn = document.getElementById("send-all");
+  if (!allBtn) return;
+  const others = [...users.values()].filter(u => u.id !== myId);
+  const isAll = others.length > 0 && others.every(u => selectedUsers.has(u.id));
+  allBtn.classList.toggle("send-active", isAll);
+  const stateEl = allBtn.querySelector(".row-btn-state");
+  if (stateEl) stateEl.textContent = isAll ? "VERBUNDEN" : "STUMM";
 }
 
 // ─── Mic toggle ───
@@ -1110,31 +1166,100 @@ function dbg(msg) {
   while (log.children.length > 20) log.removeChild(log.lastChild);
 }
 
-// ─── WebRTC outgoing ───
-async function startStreamTo(peerId) {
-  if (peerConnections.has(peerId)) return;
-  if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
+// ─── WebRTC – eine bidirektionale Verbindung pro Paar ───
+// peers: Map<peerId, RTCPeerConnection> – eine Verbindung für alles
+const peers = new Map();
 
-  dbg(`📤 Verbinde zu ${users.get(peerId)?.name}...`);
+function getPeer(peerId) {
+  return peers.get(peerId);
+}
+
+async function ensurePeer(peerId) {
+  if (peers.has(peerId)) return peers.get(peerId);
+
+  dbg(`🔗 Neue Verbindung zu ${users.get(peerId)?.name}...`);
   const pc = new RTCPeerConnection(ICE_CONFIG);
-  peerConnections.set(peerId, pc);
+  peers.set(peerId, pc);
 
-  localStream.getTracks().forEach(track => {
-    pc.addTrack(track, localStream);
-    dbg(`🎙️ Track: ${track.kind}`);
-  });
+  // Eigenen Stream hinzufügen falls vorhanden
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    dbg(`🎙️ Eigener Stream hinzugefügt`);
+  }
 
   pc.onicecandidate = (e) => {
     if (e.candidate) wsSend({ type: "ice", to: peerId, candidate: e.candidate });
   };
-  pc.oniceconnectionstatechange = () => dbg(`🧊 ${users.get(peerId)?.name}: ${pc.iceConnectionState}`);
+
+  pc.oniceconnectionstatechange = () => {
+    dbg(`🧊 ${users.get(peerId)?.name}: ${pc.iceConnectionState}`);
+  };
+
   pc.onconnectionstatechange = () => {
     dbg(`🔗 ${users.get(peerId)?.name}: ${pc.connectionState}`);
     if (pc.connectionState === "failed") {
-      pc.close(); peerConnections.delete(peerId);
-      setTimeout(() => { if (micActive && selectedUsers.has(peerId)) startStreamTo(peerId); }, 2000);
+      pc.close();
+      peers.delete(peerId);
+      // Neu verbinden falls noch ausgewählt
+      setTimeout(() => {
+        if (selectedUsers.has(peerId)) startStreamTo(peerId);
+      }, 2000);
+    }
+    if (pc.connectionState === "disconnected") {
+      setTimeout(() => {
+        if (pc.connectionState === "disconnected") {
+          pc.close();
+          peers.delete(peerId);
+          if (selectedUsers.has(peerId)) startStreamTo(peerId);
+        }
+      }, 3000);
     }
   };
+
+  // Eingehenden Audio empfangen
+  pc.ontrack = (e) => {
+    dbg(`🔊 Audio von ${users.get(peerId)?.name}!`);
+    const audioId = `audio-${peerId}`;
+    let audio = document.getElementById(audioId);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = audioId;
+      audio.autoplay = true;
+      audio.playsInline = true;
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = e.streams[0];
+    audio.play().then(() => dbg(`✅ Audio läuft!`)).catch(err => {
+      dbg(`⚠️ Autoplay blockiert – bitte tippen`);
+      const resume = () => { audio.play().catch(() => {}); };
+      document.addEventListener('touchstart', resume, { once: true });
+      document.addEventListener('click', resume, { once: true });
+    });
+  };
+
+  return pc;
+}
+
+async function startStreamTo(peerId) {
+  if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
+
+  // Bestehende Verbindung: Track ersetzen oder neu starten
+  if (peers.has(peerId)) {
+    const pc = peers.get(peerId);
+    const senders = pc.getSenders();
+    if (senders.length > 0) {
+      dbg(`🔄 Track aktualisiert für ${users.get(peerId)?.name}`);
+      localStream.getTracks().forEach(track => {
+        const sender = senders.find(s => s.track?.kind === track.kind);
+        if (sender) sender.replaceTrack(track);
+      });
+      return;
+    }
+    pc.close();
+    peers.delete(peerId);
+  }
+
+  const pc = await ensurePeer(peerId);
 
   try {
     const offer = await pc.createOffer();
@@ -1143,18 +1268,28 @@ async function startStreamTo(peerId) {
     dbg(`📨 Offer → ${users.get(peerId)?.name}`);
   } catch(e) {
     dbg(`❌ Offer Fehler: ${e.message}`);
-    peerConnections.delete(peerId);
+    peers.delete(peerId);
+    pc.close();
   }
 }
 
 function stopStreamTo(peerId) {
-  const pc = peerConnections.get(peerId);
-  if (pc) { pc.close(); peerConnections.delete(peerId); }
+  const pc = peers.get(peerId);
+  if (pc) {
+    // Nur eigene Tracks stummschalten, Verbindung offen lassen
+    pc.getSenders().forEach(sender => {
+      if (sender.track) sender.track.enabled = false;
+    });
+    dbg(`🔇 Senden zu ${users.get(peerId)?.name} gestoppt`);
+  }
 }
 
 function stopAllStreams() {
-  peerConnections.forEach(pc => pc.close());
-  peerConnections.clear();
+  peers.forEach((pc, id) => {
+    pc.getSenders().forEach(sender => {
+      if (sender.track) sender.track.enabled = false;
+    });
+  });
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
     localStream = null;
@@ -1165,53 +1300,13 @@ function stopAllStreams() {
 async function handleOffer(msg) {
   dbg(`📥 Offer von ${users.get(msg.from)?.name || msg.from}`);
 
-  // Alte Verbindung schließen
-  if (incomingPeers.has(msg.from)) {
-    incomingPeers.get(msg.from).close();
-    incomingPeers.delete(msg.from);
-  }
-  // Outgoing PC auch schließen – eingehender Offer hat Vorrang
-  if (peerConnections.has(msg.from)) {
-    dbg(`🔄 Outgoing PC geschlossen – empfange stattdessen`);
-    peerConnections.get(msg.from).close();
-    peerConnections.delete(msg.from);
+  // Bestehende Verbindung schließen
+  if (peers.has(msg.from)) {
+    peers.get(msg.from).close();
+    peers.delete(msg.from);
   }
 
-  const pc = new RTCPeerConnection(ICE_CONFIG);
-  incomingPeers.set(msg.from, pc);
-
-  // Wenn Mikrofon aktiv → eigenen Stream auch hinzufügen (bidirektional)
-  if (localStream && micActive) {
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-    dbg(`🎙️ Eigener Stream zu eingehender Verbindung hinzugefügt`);
-  }
-
-  pc.onicecandidate = (e) => {
-    if (e.candidate) wsSend({ type: "ice", to: msg.from, candidate: e.candidate });
-  };
-  pc.oniceconnectionstatechange = () => dbg(`🧊 IN ${users.get(msg.from)?.name}: ${pc.iceConnectionState}`);
-  pc.onconnectionstatechange = () => dbg(`🔗 IN ${users.get(msg.from)?.name}: ${pc.connectionState}`);
-
-  pc.ontrack = (e) => {
-    dbg(`🔊 Audio von ${users.get(msg.from)?.name}!`);
-    const audioId = `audio-${msg.from}`;
-    let audio = document.getElementById(audioId);
-    if (!audio) {
-      audio = document.createElement('audio');
-      audio.id = audioId;
-      audio.autoplay = true;
-      audio.playsInline = true;
-      document.body.appendChild(audio);
-    }
-    audio.srcObject = e.streams[0];
-    const p = audio.play();
-    if (p) p.then(() => dbg(`✅ Audio läuft!`)).catch(err => {
-      dbg(`⚠️ Autoplay blockiert – bitte Bildschirm antippen`);
-      const resume = () => { audio.play().catch(()=>{}); };
-      document.addEventListener('touchstart', resume, { once: true });
-      document.addEventListener('click', resume, { once: true });
-    });
-  };
+  const pc = await ensurePeer(msg.from);
 
   try {
     await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
@@ -1227,7 +1322,7 @@ async function handleOffer(msg) {
 
 async function handleAnswer(msg) {
   dbg(`📥 Answer von ${users.get(msg.from)?.name || msg.from}`);
-  const pc = peerConnections.get(msg.from);
+  const pc = peers.get(msg.from);
   if (pc) {
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
@@ -1241,23 +1336,11 @@ async function handleAnswer(msg) {
   }
 }
 
-// ICE Kandidaten puffern bis Remote Description gesetzt ist
-const pendingCandidates = new Map(); // peerId → [candidates]
-
 async function handleIce(msg) {
-  const pc = peerConnections.get(msg.from) || incomingPeers.get(msg.from);
-  if (!pc) {
-    // Puffern für später
+  const pc = peers.get(msg.from);
+  if (!pc || !pc.remoteDescription) {
     if (!pendingCandidates.has(msg.from)) pendingCandidates.set(msg.from, []);
     pendingCandidates.get(msg.from).push(msg.candidate);
-    dbg(`📦 ICE gepuffert von ${users.get(msg.from)?.name} (noch kein PC)`);
-    return;
-  }
-  if (!pc.remoteDescription) {
-    // Puffern bis Remote Description gesetzt
-    if (!pendingCandidates.has(msg.from)) pendingCandidates.set(msg.from, []);
-    pendingCandidates.get(msg.from).push(msg.candidate);
-    dbg(`📦 ICE gepuffert von ${users.get(msg.from)?.name} (keine remoteDesc)`);
     return;
   }
   try {
@@ -1270,13 +1353,20 @@ async function handleIce(msg) {
 async function flushPendingCandidates(peerId) {
   const candidates = pendingCandidates.get(peerId);
   if (!candidates || candidates.length === 0) return;
-  const pc = peerConnections.get(peerId) || incomingPeers.get(peerId);
+  const pc = peers.get(peerId);
   if (!pc) return;
-  dbg(`📬 Verarbeite ${candidates.length} gepufferte ICE von ${users.get(peerId)?.name}`);
+  dbg(`📬 ${candidates.length} gepufferte ICE für ${users.get(peerId)?.name}`);
   for (const candidate of candidates) {
     try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e) {}
   }
   pendingCandidates.delete(peerId);
+}
+
+function closePeer(id) {
+  const pc = peers.get(id);
+  if (pc) { pc.close(); peers.delete(id); }
+  selectedUsers.delete(id);
+  renderUsers();
 }
 
 function closePeer(id, incoming = false) {
