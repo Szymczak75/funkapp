@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #1565c0;
+      background: #6a1b9a;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -327,91 +327,94 @@
     .btn-all .btn-all-icon { font-size: 1.4rem; }
     .btn-all:active { transform: scale(0.98); }
 
-    /* ─── USER CARDS ─── */
+    /* ─── USER ROWS (DUPLEX) ─── */
     .users-grid {
       display: flex;
       flex-direction: column;
       gap: 0.6rem;
     }
 
-    .user-card {
+    .user-row {
       background: var(--panel);
       border: 3px solid var(--border);
       border-radius: 14px;
-      padding: 1rem 1.2rem;
+      display: flex;
+      align-items: stretch;
+      overflow: hidden;
+      box-shadow: 0 2px 8px var(--shadow);
+      min-height: 72px;
+    }
+
+    .user-row-name {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      cursor: pointer;
-      transition: all 0.15s;
-      user-select: none;
-      -webkit-user-select: none;
-      box-shadow: 0 2px 8px var(--shadow);
+      padding: 0 1rem;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+      min-width: 90px;
+      max-width: 90px;
+      border-right: 3px solid var(--border);
+      word-break: break-word;
+      line-height: 1.2;
     }
-    .user-card.selected {
-      border-color: var(--green);
-      background: var(--green-bg);
-    }
-    .user-card.speaking-incoming {
-      border-color: var(--amber);
-      background: var(--amber-bg);
-    }
-    .user-card:active { transform: scale(0.98); }
 
-    .user-avatar {
-      width: 72px; height: 46px;
-      border-radius: 10px;
-      background: var(--bg);
+    .user-row-right {
       display: flex;
+      flex: 1;
+    }
+
+    .row-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 0.9rem;
-      font-weight: 800;
-      flex-shrink: 0;
-      font-family: var(--sans);
-      color: var(--blue);
-      border: 2px solid var(--border);
-      transition: all 0.2s;
-      letter-spacing: 0.04em;
+      padding: 0.6rem 0.4rem;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: all 0.15s;
+      gap: 0.2rem;
+      border: none;
+      background: none;
+    }
+    .row-btn:active { transform: scale(0.96); }
+
+    .send-btn { border-right: 2px solid var(--border); }
+
+    .row-btn-label {
+      font-size: 0.65rem;
+      font-weight: 700;
       text-transform: uppercase;
-      padding: 0 6px;
-      overflow: hidden;
-    }
-    .user-card.selected .user-avatar {
-      border-color: var(--green);
-      color: var(--green);
-      background: #fff;
-    }
-    .user-card.speaking-incoming .user-avatar {
-      border-color: var(--amber);
-      color: var(--amber);
-      background: #fff;
+      letter-spacing: 0.08em;
+      color: var(--muted);
     }
 
-    .user-info { flex: 1; min-width: 0; }
-    .user-name { font-weight: 700; font-size: 1.15rem; color: var(--text); }
-    .user-status { font-size: 0.85rem; color: var(--muted); font-weight: 600; margin-top: 0.15rem; }
-    .user-card.selected .user-status { color: var(--green); }
-    .user-card.speaking-incoming .user-status { color: var(--amber); }
-
-    .user-indicator { font-size: 1.4rem; }
-
-    .card-wave {
-      display: none;
-      gap: 2px;
-      align-items: center;
+    .row-btn-state {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.05em;
     }
-    .user-card.speaking-incoming .card-wave { display: flex; }
-    .card-wave span {
-      display: block;
-      width: 3px;
-      background: var(--amber);
-      border-radius: 2px;
-      animation: wave-bar 0.5s ease-in-out infinite alternate;
+
+    /* SEND aktiv */
+    .row-btn.send-active {
+      background: var(--green-bg);
     }
-    .card-wave span:nth-child(1){height:5px;animation-delay:0s}
-    .card-wave span:nth-child(2){height:13px;animation-delay:0.1s}
-    .card-wave span:nth-child(3){height:7px;animation-delay:0.2s}
+    .row-btn.send-active .row-btn-label { color: var(--green); }
+    .row-btn.send-active .row-btn-state { color: var(--green); }
+
+    /* RECV aktiv */
+    .row-btn.recv-active {
+      background: var(--amber-bg);
+    }
+    .row-btn.recv-active .row-btn-label { color: var(--amber); }
+    .row-btn.recv-active .row-btn-state { color: var(--amber); }
+
+    /* Recv-Button ist nicht klickbar */
+    .recv-btn { cursor: default; }
+    .recv-btn:active { transform: none; }
 
     /* ─── HELP MODAL ─── */
     .help-btn {
@@ -554,7 +557,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v1.5</span>
+    <span class="version-badge">v1.6</span>
   </div>
   <div class="login-form">
     <div>
@@ -697,15 +700,21 @@
 
   <!-- All button -->
   <div>
-    <div class="section-label">Schnellauswahl</div>
-    <button class="btn-all" id="btn-all" onclick="toggleAll()">
-      <span class="btn-all-icon">📢</span>
-      <span>Alle gleichzeitig</span>
-    </button>
-
     <div class="section-label">Teilnehmer (<span id="user-count">0</span>) <span onclick="wsSend({type:'ping'})" style="cursor:pointer;color:var(--muted);font-size:0.9em;" title="Aktualisieren">↻</span></div>
+
+    <!-- Alle-Zeile -->
+    <div class="user-row" id="row-all">
+      <div class="user-row-name">📢 Alle</div>
+      <div class="user-row-right">
+        <div class="row-btn send-btn" id="send-all" onclick="toggleSendAll()">
+          <span class="row-btn-label">Ich zu allen</span>
+          <span class="row-btn-state">STUMM</span>
+        </div>
+      </div>
+    </div>
+
     <div class="users-grid" id="users-grid">
-      <div style="color:var(--muted);font-size:0.85rem;font-family:var(--mono);padding:0.5rem 0;">
+      <div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0;">
         Warte auf andere Teilnehmer...
       </div>
     </div>
@@ -941,46 +950,43 @@ function updateUsers(list) {
 function renderUsers() {
   const grid = document.getElementById("users-grid");
   const others = [...users.values()].filter(u => u.id !== myId);
+  document.getElementById("user-count").textContent = others.length;
 
   if (others.length === 0) {
-    grid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;font-family:var(--mono);padding:0.5rem 0;">Warte auf andere Teilnehmer...</div>';
+    grid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0;">Warte auf andere Teilnehmer...</div>';
+    updateSendAllBtn();
     return;
   }
 
   grid.innerHTML = others.map(u => {
-    const isSel = selectedUsers.has(u.id);
-    const isSpk = speakingFrom.has(u.id);
-    let statusText = "● Online";
-    let cardClass = "";
-    let indicator = isSel ? "✓" : "";
-
-    if (isSpk) {
-      statusText = "spricht gerade...";
-      cardClass = "speaking-incoming";
-      indicator = "";
-    } else if (isSel) {
-      statusText = micActive ? "🔴 Live" : "Ausgewählt";
-      cardClass = "selected";
-    }
+    const isSending = selectedUsers.has(u.id);
+    const isReceiving = speakingFrom.has(u.id);
+    const sendClass = isSending ? "send-active" : "";
+    const sendState = isSending ? (micActive ? "VERBUNDEN" : "AUSGEWÄHLT") : "STUMM";
+    const recvClass = isReceiving ? "recv-active" : "";
+    const recvState = isReceiving ? "VERBUNDEN" : "STUMM";
 
     return `
-      <div class="user-card ${cardClass}" onclick="toggleUser('${u.id}')">
-        <div class="user-avatar">${getInitial(u.name)}</div>
-        <div class="user-info">
-          <div class="user-name">${u.name}</div>
-          <div class="user-status">${statusText}</div>
+      <div class="user-row">
+        <div class="user-row-name">${u.name}</div>
+        <div class="user-row-right">
+          <div class="row-btn send-btn ${sendClass}" onclick="toggleUser('${u.id}')">
+            <span class="row-btn-label">Ich zu ihm</span>
+            <span class="row-btn-state">${sendState}</span>
+          </div>
+          <div class="row-btn recv-btn ${recvClass}">
+            <span class="row-btn-label">Er zu mir</span>
+            <span class="row-btn-state">${recvState}</span>
+          </div>
         </div>
-        <div class="card-wave"><span></span><span></span><span></span></div>
-        <div class="user-indicator">${indicator}</div>
       </div>`;
   }).join('');
+
+  updateSendAllBtn();
 }
 
 // ─── Select logic ───
 function toggleUser(id) {
-  allSelected = false;
-  document.getElementById("btn-all").classList.remove("active");
-
   if (selectedUsers.has(id)) {
     selectedUsers.delete(id);
     if (micActive) {
@@ -999,28 +1005,38 @@ function toggleUser(id) {
   updateMicSubLabel();
 }
 
-function toggleAll() {
-  allSelected = !allSelected;
-  document.getElementById("btn-all").classList.toggle("active", allSelected);
+function toggleSendAll() {
+  const others = [...users.values()].filter(u => u.id !== myId);
+  allSelected = !others.every(u => selectedUsers.has(u.id));
 
   if (allSelected) {
-    // Select everyone
-    [...users.values()].filter(u => u.id !== myId).forEach(u => {
+    others.forEach(u => {
       if (!selectedUsers.has(u.id)) {
         selectedUsers.add(u.id);
         if (micActive) startStreamTo(u.id);
       }
     });
+    if (micActive) wsSend({ type: "start_speaking", targets: null });
   } else {
-    // Deselect all
     [...selectedUsers].forEach(id => {
       selectedUsers.delete(id);
       if (micActive) stopStreamTo(id);
     });
+    if (micActive) wsSend({ type: "stop_speaking" });
   }
   renderUsers();
   updateStatusBar();
   updateMicSubLabel();
+}
+
+function updateSendAllBtn() {
+  const allBtn = document.getElementById("send-all");
+  if (!allBtn) return;
+  const others = [...users.values()].filter(u => u.id !== myId);
+  const isAll = others.length > 0 && others.every(u => selectedUsers.has(u.id));
+  allBtn.classList.toggle("send-active", isAll);
+  const stateEl = allBtn.querySelector(".row-btn-state");
+  if (stateEl) stateEl.textContent = isAll ? "VERBUNDEN" : "STUMM";
 }
 
 // ─── Mic toggle ───
