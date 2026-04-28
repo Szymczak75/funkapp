@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #e65100;
+      background: #0057b8;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -417,7 +417,20 @@
     .recv-btn:active { transform: none; }
 
     /* ─── HELP MODAL ─── */
-    .help-btn {
+    .logout-btn {
+      background: var(--red-bg);
+      border: 2px solid var(--red);
+      border-radius: 50%;
+      width: 36px; height: 36px;
+      font-size: 1rem;
+      color: var(--red);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .logout-btn:active { transform: scale(0.93); }
       background: var(--blue-light);
       border: 2px solid var(--blue);
       border-radius: 50%;
@@ -557,7 +570,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v1.9</span>
+    <span class="version-badge">v2.1</span>
   </div>
   <div class="login-form">
     <div>
@@ -583,6 +596,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:0.75rem;">
       <button class="help-btn" onclick="document.getElementById('help-overlay').classList.add('open')">?</button>
+      <button class="logout-btn" onclick="logout()" title="Abmelden">⏻</button>
       <div class="status-dot" id="conn-dot"></div>
     </div>
   </header>
@@ -970,7 +984,30 @@ function handleMessage(msg) {
 }
 
 // ─── Show app ───
-function showApp() {
+function logout() {
+  if (!confirm("Wirklich abmelden?")) return;
+  // Session löschen
+  sessionStorage.removeItem('funkapp_name');
+  sessionStorage.removeItem('funkapp_pw');
+  sessionStorage.removeItem('funkapp_id');
+  // Server informieren
+  wsSend({ type: "leave" });
+  // Verbindungen schließen
+  if (ws) ws.close();
+  stopAllStreams();
+  // Zurück zum Login
+  document.getElementById("app-screen").classList.remove("active");
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("input-name").value = "";
+  document.getElementById("input-password").value = "";
+  myId = null; myName = "";
+  users.clear(); selectedUsers.clear();
+}
+
+// Automatisch abmelden wenn Browser/Tab geschlossen wird
+window.addEventListener('beforeunload', () => {
+  wsSend({ type: "leave" });
+});
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("app-screen").classList.add("active");
   document.getElementById("display-myname").textContent = myName;
@@ -1243,13 +1280,15 @@ async function ensurePeer(peerId) {
 async function startStreamTo(peerId) {
   if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
 
+  // LocalStream Tracks immer aktivieren
+  localStream.getTracks().forEach(t => t.enabled = true);
+
   // Bestehende Verbindung: Track wieder aktivieren
   if (peers.has(peerId)) {
     const pc = peers.get(peerId);
     const senders = pc.getSenders();
     if (senders.length > 0) {
       localStream.getTracks().forEach(track => {
-        track.enabled = true; // ← wichtig!
         const sender = senders.find(s => s.track?.kind === track.kind);
         if (sender) sender.replaceTrack(track);
       });
@@ -1282,8 +1321,6 @@ function stopStreamTo(peerId) {
     });
     dbg(`🔇 Senden zu ${users.get(peerId)?.name} gestoppt`);
   }
-  // Auch localStream Tracks deaktivieren
-  if (localStream) localStream.getTracks().forEach(t => t.enabled = false);
 }
 
 function stopAllStreams() {
