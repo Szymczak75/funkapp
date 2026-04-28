@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #6a1b9a;
+      background: #b71c1c;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -557,7 +557,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v1.6</span>
+    <span class="version-badge">v1.7</span>
   </div>
   <div class="login-form">
     <div>
@@ -751,9 +751,11 @@ let allSelected = false;
 let micActive = false;           // Toggle-Schalter oben
 let localStream = null;
 
-let peerConnections = new Map(); // peerId → RTCPeerConnection (outgoing, ich spreche)
-let incomingPeers = new Map();   // peerId → RTCPeerConnection (incoming, jemand spricht zu mir)
-let speakingFrom = new Map();    // peerId → true (wer gerade zu mir spricht)
+let peerConnections = new Map(); // veraltet - wird nicht mehr benutzt
+let incomingPeers = new Map();   // veraltet - wird nicht mehr benutzt
+let speakingFrom = new Map();    // peerId → name (wer gerade zu mir spricht)
+
+const pendingCandidates = new Map(); // peerId → [candidates]
 
 const ICE_CONFIG = {
   iceServers: [
@@ -899,7 +901,7 @@ function handleMessage(msg) {
     case "user_left":
       updateUsers(msg.users);
       showToast(`${msg.name || "Jemand"} hat verlassen`);
-      closePeer(msg.id, true);
+      closePeer(msg.id);
       break;
     case "speaker_start":
       if (!msg.targets || msg.targets.includes(myId)) {
@@ -1126,31 +1128,100 @@ function dbg(msg) {
   while (log.children.length > 20) log.removeChild(log.lastChild);
 }
 
-// ─── WebRTC outgoing ───
-async function startStreamTo(peerId) {
-  if (peerConnections.has(peerId)) return;
-  if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
+// ─── WebRTC – eine bidirektionale Verbindung pro Paar ───
+// peers: Map<peerId, RTCPeerConnection> – eine Verbindung für alles
+const peers = new Map();
 
-  dbg(`📤 Verbinde zu ${users.get(peerId)?.name}...`);
+function getPeer(peerId) {
+  return peers.get(peerId);
+}
+
+async function ensurePeer(peerId) {
+  if (peers.has(peerId)) return peers.get(peerId);
+
+  dbg(`🔗 Neue Verbindung zu ${users.get(peerId)?.name}...`);
   const pc = new RTCPeerConnection(ICE_CONFIG);
-  peerConnections.set(peerId, pc);
+  peers.set(peerId, pc);
 
-  localStream.getTracks().forEach(track => {
-    pc.addTrack(track, localStream);
-    dbg(`🎙️ Track: ${track.kind}`);
-  });
+  // Eigenen Stream hinzufügen falls vorhanden
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    dbg(`🎙️ Eigener Stream hinzugefügt`);
+  }
 
   pc.onicecandidate = (e) => {
     if (e.candidate) wsSend({ type: "ice", to: peerId, candidate: e.candidate });
   };
-  pc.oniceconnectionstatechange = () => dbg(`🧊 ${users.get(peerId)?.name}: ${pc.iceConnectionState}`);
+
+  pc.oniceconnectionstatechange = () => {
+    dbg(`🧊 ${users.get(peerId)?.name}: ${pc.iceConnectionState}`);
+  };
+
   pc.onconnectionstatechange = () => {
     dbg(`🔗 ${users.get(peerId)?.name}: ${pc.connectionState}`);
     if (pc.connectionState === "failed") {
-      pc.close(); peerConnections.delete(peerId);
-      setTimeout(() => { if (micActive && selectedUsers.has(peerId)) startStreamTo(peerId); }, 2000);
+      pc.close();
+      peers.delete(peerId);
+      // Neu verbinden falls noch ausgewählt
+      setTimeout(() => {
+        if (selectedUsers.has(peerId)) startStreamTo(peerId);
+      }, 2000);
+    }
+    if (pc.connectionState === "disconnected") {
+      setTimeout(() => {
+        if (pc.connectionState === "disconnected") {
+          pc.close();
+          peers.delete(peerId);
+          if (selectedUsers.has(peerId)) startStreamTo(peerId);
+        }
+      }, 3000);
     }
   };
+
+  // Eingehenden Audio empfangen
+  pc.ontrack = (e) => {
+    dbg(`🔊 Audio von ${users.get(peerId)?.name}!`);
+    const audioId = `audio-${peerId}`;
+    let audio = document.getElementById(audioId);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = audioId;
+      audio.autoplay = true;
+      audio.playsInline = true;
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = e.streams[0];
+    audio.play().then(() => dbg(`✅ Audio läuft!`)).catch(err => {
+      dbg(`⚠️ Autoplay blockiert – bitte tippen`);
+      const resume = () => { audio.play().catch(() => {}); };
+      document.addEventListener('touchstart', resume, { once: true });
+      document.addEventListener('click', resume, { once: true });
+    });
+  };
+
+  return pc;
+}
+
+async function startStreamTo(peerId) {
+  if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
+
+  // Bestehende Verbindung: Track ersetzen oder neu starten
+  if (peers.has(peerId)) {
+    const pc = peers.get(peerId);
+    const senders = pc.getSenders();
+    if (senders.length > 0) {
+      dbg(`🔄 Track aktualisiert für ${users.get(peerId)?.name}`);
+      localStream.getTracks().forEach(track => {
+        const sender = senders.find(s => s.track?.kind === track.kind);
+        if (sender) sender.replaceTrack(track);
+      });
+      return;
+    }
+    pc.close();
+    peers.delete(peerId);
+  }
+
+  const pc = await ensurePeer(peerId);
 
   try {
     const offer = await pc.createOffer();
@@ -1159,18 +1230,28 @@ async function startStreamTo(peerId) {
     dbg(`📨 Offer → ${users.get(peerId)?.name}`);
   } catch(e) {
     dbg(`❌ Offer Fehler: ${e.message}`);
-    peerConnections.delete(peerId);
+    peers.delete(peerId);
+    pc.close();
   }
 }
 
 function stopStreamTo(peerId) {
-  const pc = peerConnections.get(peerId);
-  if (pc) { pc.close(); peerConnections.delete(peerId); }
+  const pc = peers.get(peerId);
+  if (pc) {
+    // Nur eigene Tracks stummschalten, Verbindung offen lassen
+    pc.getSenders().forEach(sender => {
+      if (sender.track) sender.track.enabled = false;
+    });
+    dbg(`🔇 Senden zu ${users.get(peerId)?.name} gestoppt`);
+  }
 }
 
 function stopAllStreams() {
-  peerConnections.forEach(pc => pc.close());
-  peerConnections.clear();
+  peers.forEach((pc, id) => {
+    pc.getSenders().forEach(sender => {
+      if (sender.track) sender.track.enabled = false;
+    });
+  });
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
     localStream = null;
@@ -1181,53 +1262,13 @@ function stopAllStreams() {
 async function handleOffer(msg) {
   dbg(`📥 Offer von ${users.get(msg.from)?.name || msg.from}`);
 
-  // Alte Verbindung schließen
-  if (incomingPeers.has(msg.from)) {
-    incomingPeers.get(msg.from).close();
-    incomingPeers.delete(msg.from);
-  }
-  // Outgoing PC auch schließen – eingehender Offer hat Vorrang
-  if (peerConnections.has(msg.from)) {
-    dbg(`🔄 Outgoing PC geschlossen – empfange stattdessen`);
-    peerConnections.get(msg.from).close();
-    peerConnections.delete(msg.from);
+  // Bestehende Verbindung schließen
+  if (peers.has(msg.from)) {
+    peers.get(msg.from).close();
+    peers.delete(msg.from);
   }
 
-  const pc = new RTCPeerConnection(ICE_CONFIG);
-  incomingPeers.set(msg.from, pc);
-
-  // Wenn Mikrofon aktiv → eigenen Stream auch hinzufügen (bidirektional)
-  if (localStream && micActive) {
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-    dbg(`🎙️ Eigener Stream zu eingehender Verbindung hinzugefügt`);
-  }
-
-  pc.onicecandidate = (e) => {
-    if (e.candidate) wsSend({ type: "ice", to: msg.from, candidate: e.candidate });
-  };
-  pc.oniceconnectionstatechange = () => dbg(`🧊 IN ${users.get(msg.from)?.name}: ${pc.iceConnectionState}`);
-  pc.onconnectionstatechange = () => dbg(`🔗 IN ${users.get(msg.from)?.name}: ${pc.connectionState}`);
-
-  pc.ontrack = (e) => {
-    dbg(`🔊 Audio von ${users.get(msg.from)?.name}!`);
-    const audioId = `audio-${msg.from}`;
-    let audio = document.getElementById(audioId);
-    if (!audio) {
-      audio = document.createElement('audio');
-      audio.id = audioId;
-      audio.autoplay = true;
-      audio.playsInline = true;
-      document.body.appendChild(audio);
-    }
-    audio.srcObject = e.streams[0];
-    const p = audio.play();
-    if (p) p.then(() => dbg(`✅ Audio läuft!`)).catch(err => {
-      dbg(`⚠️ Autoplay blockiert – bitte Bildschirm antippen`);
-      const resume = () => { audio.play().catch(()=>{}); };
-      document.addEventListener('touchstart', resume, { once: true });
-      document.addEventListener('click', resume, { once: true });
-    });
-  };
+  const pc = await ensurePeer(msg.from);
 
   try {
     await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
@@ -1243,7 +1284,7 @@ async function handleOffer(msg) {
 
 async function handleAnswer(msg) {
   dbg(`📥 Answer von ${users.get(msg.from)?.name || msg.from}`);
-  const pc = peerConnections.get(msg.from);
+  const pc = peers.get(msg.from);
   if (pc) {
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
@@ -1257,23 +1298,11 @@ async function handleAnswer(msg) {
   }
 }
 
-// ICE Kandidaten puffern bis Remote Description gesetzt ist
-const pendingCandidates = new Map(); // peerId → [candidates]
-
 async function handleIce(msg) {
-  const pc = peerConnections.get(msg.from) || incomingPeers.get(msg.from);
-  if (!pc) {
-    // Puffern für später
+  const pc = peers.get(msg.from);
+  if (!pc || !pc.remoteDescription) {
     if (!pendingCandidates.has(msg.from)) pendingCandidates.set(msg.from, []);
     pendingCandidates.get(msg.from).push(msg.candidate);
-    dbg(`📦 ICE gepuffert von ${users.get(msg.from)?.name} (noch kein PC)`);
-    return;
-  }
-  if (!pc.remoteDescription) {
-    // Puffern bis Remote Description gesetzt
-    if (!pendingCandidates.has(msg.from)) pendingCandidates.set(msg.from, []);
-    pendingCandidates.get(msg.from).push(msg.candidate);
-    dbg(`📦 ICE gepuffert von ${users.get(msg.from)?.name} (keine remoteDesc)`);
     return;
   }
   try {
@@ -1286,13 +1315,20 @@ async function handleIce(msg) {
 async function flushPendingCandidates(peerId) {
   const candidates = pendingCandidates.get(peerId);
   if (!candidates || candidates.length === 0) return;
-  const pc = peerConnections.get(peerId) || incomingPeers.get(peerId);
+  const pc = peers.get(peerId);
   if (!pc) return;
-  dbg(`📬 Verarbeite ${candidates.length} gepufferte ICE von ${users.get(peerId)?.name}`);
+  dbg(`📬 ${candidates.length} gepufferte ICE für ${users.get(peerId)?.name}`);
   for (const candidate of candidates) {
     try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e) {}
   }
   pendingCandidates.delete(peerId);
+}
+
+function closePeer(id) {
+  const pc = peers.get(id);
+  if (pc) { pc.close(); peers.delete(id); }
+  selectedUsers.delete(id);
+  renderUsers();
 }
 
 function closePeer(id, incoming = false) {
