@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #007a2f;
+      background: #6a1b9a;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -570,7 +570,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v2.2</span>
+    <span class="version-badge">v2.3</span>
   </div>
   <div class="login-form">
     <div>
@@ -1282,25 +1282,14 @@ async function ensurePeer(peerId) {
 async function startStreamTo(peerId) {
   if (!localStream) { dbg("❌ Kein Mikrofon-Stream!"); return; }
 
-  // LocalStream Tracks immer aktivieren
-  localStream.getTracks().forEach(t => t.enabled = true);
-
-  // Bestehende Verbindung: Track wieder aktivieren
+  // Alte Verbindung sauber schließen
   if (peers.has(peerId)) {
-    const pc = peers.get(peerId);
-    const senders = pc.getSenders();
-    if (senders.length > 0) {
-      localStream.getTracks().forEach(track => {
-        const sender = senders.find(s => s.track?.kind === track.kind);
-        if (sender) sender.replaceTrack(track);
-      });
-      dbg(`🔄 Track reaktiviert für ${users.get(peerId)?.name}`);
-      return;
-    }
-    pc.close();
+    peers.get(peerId).close();
     peers.delete(peerId);
+    pendingCandidates.delete(peerId);
   }
 
+  dbg(`📤 Starte Stream zu ${users.get(peerId)?.name}...`);
   const pc = await ensurePeer(peerId);
 
   try {
@@ -1318,19 +1307,17 @@ async function startStreamTo(peerId) {
 function stopStreamTo(peerId) {
   const pc = peers.get(peerId);
   if (pc) {
-    pc.getSenders().forEach(sender => {
-      if (sender.track) sender.track.enabled = false;
-    });
-    dbg(`🔇 Senden zu ${users.get(peerId)?.name} gestoppt`);
+    pc.close();
+    peers.delete(peerId);
+    pendingCandidates.delete(peerId);
+    dbg(`🔇 Verbindung zu ${users.get(peerId)?.name} getrennt`);
   }
 }
 
 function stopAllStreams() {
-  peers.forEach((pc, id) => {
-    pc.getSenders().forEach(sender => {
-      if (sender.track) sender.track.enabled = false;
-    });
-  });
+  peers.forEach((pc) => pc.close());
+  peers.clear();
+  pendingCandidates.clear();
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
     localStream = null;
@@ -1406,17 +1393,13 @@ async function flushPendingCandidates(peerId) {
 function closePeer(id) {
   const pc = peers.get(id);
   if (pc) { pc.close(); peers.delete(id); }
+  pendingCandidates.delete(id);
   selectedUsers.delete(id);
+  speakingFrom.delete(id);
+  // Audio Element entfernen
+  const audio = document.getElementById(`audio-${id}`);
+  if (audio) audio.remove();
   renderUsers();
-}
-
-function closePeer(id, incoming = false) {
-  if (incoming) {
-    const pc = incomingPeers.get(id);
-    if (pc) { pc.close(); incomingPeers.delete(id); }
-  } else {
-    stopStreamTo(id);
-  }
 }
 
 // ─── Enter key ───
