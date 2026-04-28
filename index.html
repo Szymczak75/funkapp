@@ -65,7 +65,7 @@
 
     .version-badge {
       display: inline-block;
-      background: #0057b8;
+      background: #007a2f;
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
@@ -570,7 +570,7 @@
     <span class="logo-icon">📻</span>
     <h1>FUNKAPP</h1>
     <p>Antippen · Sprechen · Fertig</p>
-    <span class="version-badge">v2.1</span>
+    <span class="version-badge">v2.2</span>
   </div>
   <div class="login-form">
     <div>
@@ -1008,6 +1008,8 @@ function logout() {
 window.addEventListener('beforeunload', () => {
   wsSend({ type: "leave" });
 });
+
+function showApp() {
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("app-screen").classList.add("active");
   document.getElementById("display-myname").textContent = myName;
